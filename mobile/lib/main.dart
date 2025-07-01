@@ -22,18 +22,18 @@ import 'package:tripthread/utils/error_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   try {
     // Initialize services
     final storageService = StorageService();
     await storageService.init();
-    
+
     final connectivityService = ConnectivityService();
     await connectivityService.initialize();
-    
+
     final apiService = ApiService();
     final tripService = TripService();
-    
+
     runApp(TripThreadApp(
       storageService: storageService,
       apiService: apiService,
@@ -42,7 +42,7 @@ void main() async {
     ));
   } catch (error) {
     ErrorHandler.logError(error, context: 'App initialization');
-    
+
     // Show error screen or fallback
     runApp(MaterialApp(
       home: Scaffold(
@@ -84,7 +84,8 @@ class TripThreadApp extends StatelessWidget {
         Provider<StorageService>.value(value: storageService),
         Provider<ApiService>.value(value: apiService),
         Provider<TripService>.value(value: tripService),
-        ChangeNotifierProvider<ConnectivityService>.value(value: connectivityService),
+        ChangeNotifierProvider<ConnectivityService>.value(
+            value: connectivityService),
         ChangeNotifierProvider<AuthProvider>(
           create: (context) => AuthProvider(
             apiService: apiService,
@@ -167,22 +168,29 @@ class TripThreadApp extends StatelessWidget {
       redirect: (context, state) {
         final isLoggedIn = authProvider.isAuthenticated;
         final isLoading = authProvider.isLoading;
-        
+        print(
+            'GoRouter redirect: isLoading=$isLoading, isLoggedIn=$isLoggedIn, uri=${state.uri}');
+
         // Show splash while loading
         if (isLoading) {
           return '/splash';
         }
-        
+
         // Redirect to home if logged in and trying to access auth pages
-        if (isLoggedIn && (state.uri.toString() == '/login' || state.uri.toString() == '/signup')) {
+        if (isLoggedIn &&
+            (state.uri.toString() == '/login' ||
+                state.uri.toString() == '/signup' ||
+                state.uri.toString() == '/splash')) {
           return '/home';
         }
-        
+
         // Redirect to login if not logged in and trying to access protected pages
-        if (!isLoggedIn && state.uri.toString() != '/login' && state.uri.toString() != '/signup' && state.uri.toString() != '/splash') {
+        if (!isLoggedIn &&
+            state.uri.toString() != '/login' &&
+            state.uri.toString() != '/signup') {
           return '/login';
         }
-        
+
         return null;
       },
       routes: [

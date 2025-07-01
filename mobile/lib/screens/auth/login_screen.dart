@@ -20,6 +20,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().clearError();
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -34,7 +42,8 @@ class _LoginScreenState extends State<LoginScreen> {
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
-
+    print(
+        'LoginScreen: login success = $success, isAuthenticated = ${authProvider.isAuthenticated}');
     if (success && mounted) {
       context.go('/home');
     }
@@ -44,15 +53,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Spacer(),
-                
+                const SizedBox(height: 60),
                 // Logo and Title
                 Column(
                   children: [
@@ -69,17 +77,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.white,
                       ),
                     ),
-                    
                     const SizedBox(height: 24),
-                    
                     Text(
                       'Welcome back',
                       style: Theme.of(context).textTheme.displaySmall,
                       textAlign: TextAlign.center,
                     ),
-                    
                     const SizedBox(height: 8),
-                    
                     Text(
                       'Sign in to continue your travel journey',
                       style: Theme.of(context).textTheme.bodyMedium,
@@ -87,9 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
-                
                 const SizedBox(height: 48),
-                
                 // Email Field
                 CustomTextField(
                   controller: _emailController,
@@ -101,9 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     EmailValidator(errorText: 'Please enter a valid email'),
                   ]),
                 ),
-                
                 const SizedBox(height: 16),
-                
                 // Password Field
                 CustomTextField(
                   controller: _passwordController,
@@ -112,7 +112,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: Icons.lock_outlined,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
                     ),
                     onPressed: () {
                       setState(() {
@@ -120,11 +122,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       });
                     },
                   ),
-                  validator: RequiredValidator(errorText: 'Password is required'),
+                  validator:
+                      RequiredValidator(errorText: 'Password is required'),
                 ),
-                
                 const SizedBox(height: 24),
-                
                 // Error Message
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
@@ -133,10 +134,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         margin: const EdgeInsets.only(bottom: 16),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .error
+                              .withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .error
+                                .withOpacity(0.3),
                           ),
                         ),
                         child: Text(
@@ -151,7 +158,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     return const SizedBox.shrink();
                   },
                 ),
-                
                 // Login Button
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
@@ -162,9 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     );
                   },
                 ),
-                
                 const SizedBox(height: 24),
-                
                 // Sign Up Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -179,8 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
-                
-                const Spacer(),
+                const SizedBox(height: 40),
               ],
             ),
           ),

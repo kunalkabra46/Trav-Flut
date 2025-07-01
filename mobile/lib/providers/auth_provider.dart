@@ -14,7 +14,8 @@ class AuthProvider extends ChangeNotifier {
   AuthProvider({
     required ApiService apiService,
     required StorageService storageService,
-  }) : _apiService = apiService, _storageService = storageService {
+  })  : _apiService = apiService,
+        _storageService = storageService {
     _apiService.setStorageService(_storageService);
     _initializeAuth();
   }
@@ -27,26 +28,35 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _initializeAuth() async {
     try {
+      print('AuthProvider: Starting initialization');
       _isLoading = true;
       notifyListeners();
 
       final hasTokens = await _storageService.hasValidTokens();
+      print('AuthProvider: hasTokens = '
+          '[32m$hasTokens[0m');
       if (hasTokens) {
         final userId = await _storageService.getUserId();
+        print('AuthProvider: userId = '
+            '[34m$userId[0m');
         if (userId != null) {
           final response = await _apiService.getUser(userId);
+          print('AuthProvider: getUser response = '
+              '\u001b[36m${response.success} | ${response.data} | ${response.error}\u001b[0m');
           if (response.success && response.data != null) {
             _currentUser = response.data;
           } else {
-            // Invalid tokens, clear them
+            print('AuthProvider: Invalid tokens, clearing');
             await _storageService.clearTokens();
           }
         }
       }
-    } catch (e) {
+    } catch (e, stack) {
       _error = 'Failed to initialize authentication';
       debugPrint('Auth initialization error: $e');
+      debugPrint('Stack: $stack');
     } finally {
+      print('AuthProvider: Initialization complete, isLoading = false');
       _isLoading = false;
       notifyListeners();
     }
@@ -73,7 +83,7 @@ class AuthProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         final authData = response.data!;
         _currentUser = authData.user;
-        
+
         await _storageService.saveTokens(
           accessToken: authData.accessToken,
           refreshToken: authData.refreshToken,
@@ -115,7 +125,7 @@ class AuthProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         final authData = response.data!;
         _currentUser = authData.user;
-        
+
         await _storageService.saveTokens(
           accessToken: authData.accessToken,
           refreshToken: authData.refreshToken,

@@ -4,7 +4,9 @@ import 'package:tripthread/models/user.dart';
 import 'package:tripthread/services/storage_service.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000/api';
+  // static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseUrl = 'http://10.61.114.100:3000/api';
+
   late final Dio _dio;
   StorageService? _storageService;
 
@@ -244,9 +246,11 @@ class ApiService {
     }
   }
 
-  Future<ApiResponse<List<User>>> getFollowers(String userId, {int page = 1, int limit = 20}) async {
+  Future<ApiResponse<List<User>>> getFollowers(String userId,
+      {int page = 1, int limit = 20}) async {
     try {
-      final response = await _dio.get('/users/$userId/followers', queryParameters: {
+      final response =
+          await _dio.get('/users/$userId/followers', queryParameters: {
         'page': page,
         'limit': limit,
       });
@@ -267,9 +271,11 @@ class ApiService {
     }
   }
 
-  Future<ApiResponse<List<User>>> getFollowing(String userId, {int page = 1, int limit = 20}) async {
+  Future<ApiResponse<List<User>>> getFollowing(String userId,
+      {int page = 1, int limit = 20}) async {
     try {
-      final response = await _dio.get('/users/$userId/following', queryParameters: {
+      final response =
+          await _dio.get('/users/$userId/following', queryParameters: {
         'page': page,
         'limit': limit,
       });
