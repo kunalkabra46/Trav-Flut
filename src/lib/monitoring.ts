@@ -61,7 +61,9 @@ export class PerformanceMonitor {
   getAllMetrics(): Record<string, any> {
     const result: Record<string, any> = {};
 
-    for (const [operation, metrics] of this.metrics.entries()) {
+    // Use Array.from to ensure compatibility with older targets
+    for (const entry of Array.from(this.metrics.entries())) {
+      const operation = entry[0];
       result[operation] = this.getMetrics(operation);
     }
 
