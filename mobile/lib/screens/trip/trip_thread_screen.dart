@@ -130,7 +130,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_trip!.title),
-        subtitle: Text('Trip Thread'),
+        // subtitle: Text('Trip Thread'),
       ),
       body: Column(
         children: [

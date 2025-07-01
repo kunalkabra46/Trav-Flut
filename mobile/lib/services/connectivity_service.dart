@@ -8,8 +8,8 @@ class ConnectivityService extends ChangeNotifier {
   ConnectivityService._internal();
 
   final Connectivity _connectivity = Connectivity();
-  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
-  
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
+
   ConnectivityResult _connectionStatus = ConnectivityResult.none;
   bool get isConnected => _connectionStatus != ConnectivityResult.none;
   bool get isWifi => _connectionStatus == ConnectivityResult.wifi;
@@ -19,9 +19,14 @@ class ConnectivityService extends ChangeNotifier {
 
   Future<void> initialize() async {
     try {
-      _connectionStatus = await _connectivity.checkConnectivity();
+      final results = await _connectivity.checkConnectivity();
+      _connectionStatus =
+          results.isNotEmpty ? results.first : ConnectivityResult.none;
       _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
-        _updateConnectionStatus,
+        (results) {
+          _updateConnectionStatus(
+              results.isNotEmpty ? results.first : ConnectivityResult.none);
+        },
         onError: (error) {
           debugPrint('Connectivity error: $error');
         },
@@ -34,7 +39,7 @@ class ConnectivityService extends ChangeNotifier {
   void _updateConnectionStatus(ConnectivityResult result) {
     _connectionStatus = result;
     notifyListeners();
-    
+
     if (kDebugMode) {
       debugPrint('Connectivity changed: $result');
     }

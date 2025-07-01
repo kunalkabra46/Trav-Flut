@@ -13,7 +13,7 @@ class StorageService {
         encryptedSharedPreferences: true,
       ),
       iOptions: IOSOptions(
-        accessibility: KeychainItemAccessibility.first_unlock_this_device,
+        accessibility: KeychainAccessibility.first_unlock_this_device,
       ),
     );
   }

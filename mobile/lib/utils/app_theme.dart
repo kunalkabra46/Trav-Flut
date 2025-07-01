@@ -8,7 +8,7 @@ class AppTheme {
   static const Color backgroundColor = Color(0xFFF9FAFB);
   static const Color surfaceColor = Colors.white;
   static const Color errorColor = Color(0xFFEF4444);
-  
+
   // Text Colors
   static const Color textPrimary = Color(0xFF111827);
   static const Color textSecondary = Color(0xFF6B7280);
@@ -27,7 +27,7 @@ class AppTheme {
         onSurface: textPrimary,
         onError: Colors.white,
       ),
-      
+
       // App Bar Theme
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
@@ -188,7 +188,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: errorColor, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         hintStyle: const TextStyle(
           color: textTertiary,
           fontFamily: 'Inter',
@@ -196,11 +197,11 @@ class AppTheme {
       ),
 
       // Card Theme
-      cardTheme: CardTheme(
+      cardTheme: const CardThemeData(
         color: surfaceColor,
         elevation: 1,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
       ),
 
@@ -229,7 +230,7 @@ class AppTheme {
         onSurface: Colors.white,
         onError: Colors.white,
       ),
-      
+
       // Similar theme configurations for dark mode...
       // (Abbreviated for brevity, but would include all the same customizations)
     );

@@ -497,7 +497,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     );
   }
 
-  Widget _buildStatusB adge(TripStatus status) {
+  Widget _buildStatusBadge(TripStatus status) {
     Color color;
     String label;
     

@@ -19,13 +19,14 @@ class ApiResponse<T> {
   factory ApiResponse.fromJson(
     Map<String, dynamic> json,
     T Function(Object? json) fromJsonT,
-  ) => _$ApiResponseFromJson(json, fromJsonT);
+  ) =>
+      _$ApiResponseFromJson(json, fromJsonT);
 
   Map<String, dynamic> toJson(Object Function(T value) toJsonT) =>
       _$ApiResponseToJson(this, toJsonT);
 }
 
-@JsonSerializable()
+@JsonSerializable(genericArgumentFactories: true)
 class PaginatedResponse<T> {
   final List<T> data;
   final PaginationInfo pagination;
@@ -35,10 +36,14 @@ class PaginatedResponse<T> {
     required this.pagination,
   });
 
-  factory PaginatedResponse.fromJson(Map<String, dynamic> json) =>
-      _$PaginatedResponseFromJson(json);
+  factory PaginatedResponse.fromJson(
+    Map<String, dynamic> json,
+    T Function(Object? json) fromJsonT,
+  ) =>
+      _$PaginatedResponseFromJson(json, fromJsonT);
 
-  Map<String, dynamic> toJson() => _$PaginatedResponseToJson(this);
+  Map<String, dynamic> toJson(Object Function(T value) toJsonT) =>
+      _$PaginatedResponseToJson(this, toJsonT);
 }
 
 @JsonSerializable()

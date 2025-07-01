@@ -9,11 +9,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tripthread/main.dart';
+import 'package:tripthread/services/storage_service.dart';
+import 'package:tripthread/services/api_service.dart';
+import 'package:tripthread/services/trip_service.dart';
+import 'package:tripthread/services/connectivity_service.dart';
+
+class MockStorageService implements StorageService {}
+
+class MockApiService implements ApiService {}
+
+class MockTripService implements TripService {}
+
+class MockConnectivityService extends ConnectivityService {
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<bool> hasInternetConnection() async => true;
+
+  @override
+  ConnectivityResult get connectionStatus => ConnectivityResult.wifi;
+
+  @override
+  void dispose() {}
+}
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(
+      TripThreadApp(
+        storageService: MockStorageService(),
+        apiService: MockApiService(),
+        tripService: MockTripService(),
+        connectivityService: MockConnectivityService(),
+      ),
+    );
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
