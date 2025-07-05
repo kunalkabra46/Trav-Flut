@@ -12,6 +12,7 @@ class CustomTextField extends StatelessWidget {
   final int maxLines;
   final int? maxLength;
   final bool enabled;
+  final ValueChanged<String>? onChanged;
 
   const CustomTextField({
     Key? key,
@@ -26,6 +27,7 @@ class CustomTextField extends StatelessWidget {
     this.maxLines = 1,
     this.maxLength,
     this.enabled = true,
+    this.onChanged,
   }) : super(key: key);
 
   @override
@@ -36,8 +38,8 @@ class CustomTextField extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+                fontWeight: FontWeight.w600,
+              ),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -48,6 +50,7 @@ class CustomTextField extends StatelessWidget {
           maxLines: maxLines,
           maxLength: maxLength,
           enabled: enabled,
+          onChanged: onChanged,
           decoration: InputDecoration(
             hintText: hintText ?? label,
             prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
