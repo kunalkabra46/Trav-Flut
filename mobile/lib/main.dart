@@ -34,12 +34,34 @@ void main() async {
     final apiService = ApiService();
     final tripService = TripService();
 
-    runApp(TripThreadApp(
-      storageService: storageService,
-      apiService: apiService,
-      tripService: tripService,
-      connectivityService: connectivityService,
-    ));
+    runApp(
+      MultiProvider(
+        providers: [
+          Provider<StorageService>.value(value: storageService),
+          Provider<ApiService>.value(value: apiService),
+          Provider<TripService>.value(value: tripService),
+          ChangeNotifierProvider<ConnectivityService>.value(
+              value: connectivityService),
+          ChangeNotifierProvider<AuthProvider>(
+            create: (context) => AuthProvider(
+              apiService: apiService,
+              storageService: storageService,
+            ),
+          ),
+          ChangeNotifierProvider<UserProvider>(
+            create: (context) => UserProvider(apiService: apiService),
+          ),
+          ChangeNotifierProvider<TripProvider>(
+            create: (context) {
+              final provider = TripProvider(tripService: tripService);
+              tripService.setStorageService(storageService);
+              return provider;
+            },
+          ),
+        ],
+        child: TripThreadAppRouter(),
+      ),
+    );
   } catch (error) {
     ErrorHandler.logError(error, context: 'App initialization');
 
@@ -63,91 +85,66 @@ void main() async {
   }
 }
 
-class TripThreadApp extends StatelessWidget {
-  final StorageService storageService;
-  final ApiService apiService;
-  final TripService tripService;
-  final ConnectivityService connectivityService;
-
-  const TripThreadApp({
-    Key? key,
-    required this.storageService,
-    required this.apiService,
-    required this.tripService,
-    required this.connectivityService,
-  }) : super(key: key);
+class TripThreadAppRouter extends StatelessWidget {
+  TripThreadAppRouter({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        Provider<StorageService>.value(value: storageService),
-        Provider<ApiService>.value(value: apiService),
-        Provider<TripService>.value(value: tripService),
-        ChangeNotifierProvider<ConnectivityService>.value(
-            value: connectivityService),
-        ChangeNotifierProvider<AuthProvider>(
-          create: (context) => AuthProvider(
-            apiService: apiService,
-            storageService: storageService,
-          ),
-        ),
-        ChangeNotifierProvider<UserProvider>(
-          create: (context) => UserProvider(apiService: apiService),
-        ),
-        ChangeNotifierProvider<TripProvider>(
-          create: (context) {
-            final provider = TripProvider(tripService: tripService);
-            tripService.setStorageService(storageService);
-            return provider;
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, _) {
+        return MaterialApp.router(
+          title: 'TripThread',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeMode.system,
+          routerConfig: _createRouter(authProvider),
+          debugShowCheckedModeBanner: false,
+          builder: (context, child) {
+            final authProvider = context.watch<AuthProvider>();
+            final connectivity = context.watch<ConnectivityService>();
+            return Stack(
+              children: [
+                child ?? const SizedBox.shrink(),
+                // 👇 Only show splash while loading, with debug print
+                if (authProvider.isLoading) ...[
+                  (() {
+                    debugPrint('Rendering SplashScreen');
+                    return IgnorePointer(
+                      ignoring: false,
+                      child: const SplashScreen(),
+                    );
+                  })(),
+                ],
+                // 👇 Offline banner
+                if (!connectivity.isConnected)
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      color: Colors.red,
+                      child: const Text(
+                        'No internet connection',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
+            );
           },
-        ),
-      ],
-      child: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          return MaterialApp.router(
-            title: 'TripThread',
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: ThemeMode.system,
-            routerConfig: _createRouter(authProvider),
-            debugShowCheckedModeBanner: false,
-            builder: (context, child) {
-              // Global error boundary and connectivity indicator
-              return Consumer<ConnectivityService>(
-                builder: (context, connectivity, _) {
-                  return Stack(
-                    children: [
-                      child ?? const SizedBox.shrink(),
-                      if (!connectivity.isConnected)
-                        Positioned(
-                          top: MediaQuery.of(context).padding.top,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            color: Colors.red,
-                            child: const Text(
-                              'No internet connection',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
+        );
+      },
     );
   }
 
+  String?
+      _lastLocation; // place this outside the function (as static or top-level)
+
   GoRouter _createRouter(AuthProvider authProvider) {
     return GoRouter(
-      initialLocation: '/splash',
+      initialLocation: '/login',
       errorBuilder: (context, state) => Scaffold(
         body: Center(
           child: Column(
@@ -165,39 +162,32 @@ class TripThreadApp extends StatelessWidget {
           ),
         ),
       ),
+      refreshListenable: authProvider,
       redirect: (context, state) {
-        final isLoggedIn = authProvider.isAuthenticated;
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
         final isLoading = authProvider.isLoading;
-        print(
-            'GoRouter redirect: isLoading=$isLoading, isLoggedIn=$isLoggedIn, uri=${state.uri}');
+        final isLoggedIn = authProvider.isAuthenticated;
+        final location = state.uri.toString();
 
-        // Show splash while loading
-        if (isLoading) {
-          return '/splash';
+        // ✅ Log only when location actually changes
+        if (location != _lastLocation) {
+          print('[GoRouter] location changed to: $location');
+          _lastLocation = location;
         }
 
-        // Redirect to home if logged in and trying to access auth pages
-        if (isLoggedIn &&
-            (state.uri.toString() == '/login' ||
-                state.uri.toString() == '/signup' ||
-                state.uri.toString() == '/splash')) {
-          return '/home';
-        }
+        if (isLoading) return null;
 
-        // Redirect to login if not logged in and trying to access protected pages
-        if (!isLoggedIn &&
-            state.uri.toString() != '/login' &&
-            state.uri.toString() != '/signup') {
+        if (!isLoggedIn && location != '/login' && location != '/signup') {
           return '/login';
+        }
+
+        if (isLoggedIn && (location == '/login' || location == '/signup')) {
+          return '/home';
         }
 
         return null;
       },
       routes: [
-        GoRoute(
-          path: '/splash',
-          builder: (context, state) => const SplashScreen(),
-        ),
         GoRoute(
           path: '/login',
           builder: (context, state) => const LoginScreen(),

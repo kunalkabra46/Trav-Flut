@@ -26,34 +26,38 @@ class SplashScreen extends StatelessWidget {
                 color: Color(0xFF6366F1),
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // App Name
             Text(
               'TripThread',
               style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // Tagline
             Text(
               'Document your journey',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white.withOpacity(0.8),
-              ),
+                    color: Colors.white.withOpacity(0.8),
+                  ),
             ),
-            
+
             const SizedBox(height: 48),
-            
-            // Loading Indicator
-            const SpinKitThreeBounce(
-              color: Colors.white,
-              size: 24,
+
+            // Loading Indicator (fixed overflow)
+            const SizedBox(
+              width: 60, // enough horizontal space for the three dots
+              height: 24,
+              child: SpinKitThreeBounce(
+                color: Colors.white,
+                size: 16,
+              ),
             ),
           ],
         ),

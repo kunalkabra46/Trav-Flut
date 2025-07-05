@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:tripthread/models/user.dart';
 import 'package:tripthread/services/api_service.dart';
 import 'package:tripthread/services/storage_service.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _apiService;
@@ -27,22 +28,37 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> _initializeAuth() async {
+    print('AuthProvider: Starting initialization');
+    _isLoading = true;
+    notifyListeners();
     try {
-      print('AuthProvider: Starting initialization');
-      _isLoading = true;
-      notifyListeners();
-
-      final hasTokens = await _storageService.hasValidTokens();
-      print('AuthProvider: hasTokens = '
-          '[32m$hasTokens[0m');
+      print('AuthProvider: Checking tokens...');
+      final hasTokens = await _storageService
+          .hasValidTokens()
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        print('AuthProvider: hasValidTokens() timed out!');
+        throw Exception('hasValidTokens() timed out');
+      });
+      print('AuthProvider: hasTokens = $hasTokens');
       if (hasTokens) {
-        final userId = await _storageService.getUserId();
-        print('AuthProvider: userId = '
-            '[34m$userId[0m');
+        print('AuthProvider: Getting userId...');
+        final userId = await _storageService
+            .getUserId()
+            .timeout(const Duration(seconds: 5), onTimeout: () {
+          print('AuthProvider: getUserId() timed out!');
+          throw Exception('getUserId() timed out');
+        });
+        print('AuthProvider: userId = $userId');
         if (userId != null) {
-          final response = await _apiService.getUser(userId);
-          print('AuthProvider: getUser response = '
-              '\u001b[36m${response.success} | ${response.data} | ${response.error}\u001b[0m');
+          print('AuthProvider: Calling getUser...');
+          final response = await _apiService
+              .getUser(userId)
+              .timeout(const Duration(seconds: 5), onTimeout: () {
+            print('AuthProvider: getUser() timed out!');
+            throw Exception('getUser() timed out');
+          });
+          print(
+              'AuthProvider: getUser response = ${response.success} | ${response.data} | ${response.error}');
           if (response.success && response.data != null) {
             _currentUser = response.data;
           } else {
@@ -53,8 +69,8 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (e, stack) {
       _error = 'Failed to initialize authentication';
-      debugPrint('Auth initialization error: $e');
-      debugPrint('Stack: $stack');
+      print('AuthProvider: Exception in _initializeAuth: $e\n$stack');
+      await _storageService.clearTokens();
     } finally {
       print('AuthProvider: Initialization complete, isLoading = false');
       _isLoading = false;
@@ -80,6 +96,8 @@ class AuthProvider extends ChangeNotifier {
         username: username,
       );
 
+      print(
+          '[AuthProvider] signup response: success=${response.success}, error=${response.error}, data=${response.data}');
       if (response.success && response.data != null) {
         final authData = response.data!;
         _currentUser = authData.user;
@@ -95,12 +113,14 @@ class AuthProvider extends ChangeNotifier {
         return true;
       } else {
         _error = response.error ?? 'Signup failed';
+        print('[AuthProvider] signup error set: $_error');
         _isLoading = false;
         notifyListeners();
         return false;
       }
     } catch (e) {
       _error = 'An unexpected error occurred';
+      print('[AuthProvider] signup catch error: $e');
       _isLoading = false;
       notifyListeners();
       debugPrint('Signup error: $e');
@@ -122,6 +142,8 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
 
+      print(
+          '[AuthProvider] login response: success=${response.success}, error=${response.error}, data=${response.data}');
       if (response.success && response.data != null) {
         final authData = response.data!;
         _currentUser = authData.user;
@@ -137,12 +159,14 @@ class AuthProvider extends ChangeNotifier {
         return true;
       } else {
         _error = response.error ?? 'Login failed';
+        print('[AuthProvider] login error set: $_error');
         _isLoading = false;
         notifyListeners();
         return false;
       }
     } catch (e) {
       _error = 'An unexpected error occurred';
+      print('[AuthProvider] login catch error: $e');
       _isLoading = false;
       notifyListeners();
       debugPrint('Login error: $e');
@@ -171,7 +195,18 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void clearError() {
-    _error = null;
+    // if (_error != null) {
+      print('[AuthProvider] clearError called, clearing error');
+      _error = null;
+      notifyListeners();
+    // }
+  }
+
+  // Called by ApiService when refresh fails or user is unauthorized
+  Future<void> forceLogout({String? message}) async {
+    _currentUser = null;
+    await _storageService.clearTokens();
+    _error = message;
     notifyListeners();
   }
 }

@@ -2,13 +2,16 @@ import 'package:dio/dio.dart';
 import 'package:tripthread/models/api_response.dart';
 import 'package:tripthread/models/user.dart';
 import 'package:tripthread/services/storage_service.dart';
+import 'package:flutter/foundation.dart';
 
 class ApiService {
   // static const String baseUrl = 'http://localhost:3000/api';
-  static const String baseUrl = 'http://10.61.114.100:3000/api';
+  // static const String baseUrl = 'http://10.61.114.100:3000/api';
+  static const String baseUrl = 'http://192.168.0.110:3000/api';
 
   late final Dio _dio;
   StorageService? _storageService;
+  VoidCallback? _onUnauthorized;
 
   ApiService() {
     _dio = Dio(BaseOptions(
@@ -25,6 +28,10 @@ class ApiService {
 
   void setStorageService(StorageService storageService) {
     _storageService = storageService;
+  }
+
+  void setUnauthorizedCallback(VoidCallback callback) {
+    _onUnauthorized = callback;
   }
 
   void _setupInterceptors() {
@@ -49,7 +56,8 @@ class ApiService {
                 'refreshToken': refreshToken,
               });
 
-              if (response.statusCode == 200) {
+              if (response.statusCode == 200 &&
+                  response.data['success'] == true) {
                 final newToken = response.data['data']['accessToken'];
                 await _storageService!.saveAccessToken(newToken);
 
@@ -58,10 +66,25 @@ class ApiService {
                 opts.headers['Authorization'] = 'Bearer $newToken';
                 final cloneReq = await _dio.fetch(opts);
                 return handler.resolve(cloneReq);
+              } else {
+                // Refresh failed, clear tokens and notify
+                await _storageService!.clearTokens();
+                if (_onUnauthorized != null) {
+                  _onUnauthorized!();
+                }
               }
             } catch (e) {
-              // Refresh failed, clear tokens
+              // Refresh failed, clear tokens and notify
               await _storageService!.clearTokens();
+              if (_onUnauthorized != null) {
+                _onUnauthorized!();
+              }
+            }
+          } else {
+            // No refresh token, clear tokens and notify
+            await _storageService!.clearTokens();
+            if (_onUnauthorized != null) {
+              _onUnauthorized!();
             }
           }
         }
@@ -78,6 +101,8 @@ class ApiService {
     String? username,
   }) async {
     try {
+      print(
+          '[ApiService] signup called with email: $email, name: $name, username: $username');
       final response = await _dio.post('/auth/signup', data: {
         'email': email,
         'password': password,
@@ -90,6 +115,8 @@ class ApiService {
         (json) => AuthResponse.fromJson(json as Map<String, dynamic>),
       );
     } on DioException catch (e) {
+      print('[ApiService] signup DioException: ${e.toString()}');
+      print('[ApiService] signup DioException response: ${e.response?.data}');
       return ApiResponse<AuthResponse>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
@@ -102,6 +129,7 @@ class ApiService {
     required String password,
   }) async {
     try {
+      print('[ApiService] login called with email: $email');
       final response = await _dio.post('/auth/login', data: {
         'email': email,
         'password': password,
@@ -112,6 +140,8 @@ class ApiService {
         (json) => AuthResponse.fromJson(json as Map<String, dynamic>),
       );
     } on DioException catch (e) {
+      print('[ApiService] login DioException: ${e.toString()}');
+      print('[ApiService] login DioException response: ${e.response?.data}');
       return ApiResponse<AuthResponse>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
@@ -292,6 +322,37 @@ class ApiService {
       return ApiResponse<List<User>>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  // Add this method for manual refresh
+  Future<ApiResponse<Map<String, dynamic>>> refreshAccessToken(
+      String refreshToken) async {
+    try {
+      final response = await _dio.post('/auth/refresh-token', data: {
+        'refreshToken': refreshToken,
+      });
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return ApiResponse<Map<String, dynamic>>(
+          success: true,
+          data: Map<String, dynamic>.from(response.data['data']),
+        );
+      } else {
+        return ApiResponse<Map<String, dynamic>>(
+          success: false,
+          error: response.data['error'] ?? 'Failed to refresh token',
+        );
+      }
+    } on DioException catch (e) {
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        error: 'Unknown error occurred',
       );
     }
   }

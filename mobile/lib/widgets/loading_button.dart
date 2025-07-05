@@ -21,12 +21,14 @@ class LoadingButton extends StatelessWidget {
       onPressed: isLoading ? null : onPressed,
       style: style,
       child: isLoading
-          ? SizedBox(
+          ? const SizedBox(
+              width: 48, // ensures enough room for all three bounces
               height: 20,
-              width: 20,
-              child: SpinKitThreeBounce(
-                color: Theme.of(context).colorScheme.onPrimary,
-                size: 16,
+              child: Center(
+                child: SpinKitThreeBounce(
+                  color: Colors.white,
+                  size: 12,
+                ),
               ),
             )
           : child,

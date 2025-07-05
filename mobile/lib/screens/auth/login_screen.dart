@@ -5,6 +5,7 @@ import 'package:form_field_validator/form_field_validator.dart';
 import 'package:tripthread/providers/auth_provider.dart';
 import 'package:tripthread/widgets/custom_text_field.dart';
 import 'package:tripthread/widgets/loading_button.dart';
+import 'package:flutter/services.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -19,12 +20,15 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  @override
+@override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AuthProvider>().clearError();
-    });
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.error != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        authProvider.clearError();
+      });
+    }
   }
 
   @override
@@ -102,6 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     RequiredValidator(errorText: 'Email is required'),
                     EmailValidator(errorText: 'Please enter a valid email'),
                   ]),
+                  // onChanged: (_) => context.read<AuthProvider>().clearError(),
                 ),
                 const SizedBox(height: 16),
                 // Password Field
@@ -124,11 +129,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator:
                       RequiredValidator(errorText: 'Password is required'),
+                  // onChanged: (_) => context.read<AuthProvider>().clearError(),
                 ),
                 const SizedBox(height: 24),
                 // Error Message
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
+                    print('Building error widget: ${authProvider.error}');
                     if (authProvider.error != null) {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
@@ -190,5 +197,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+    // );
   }
 }
