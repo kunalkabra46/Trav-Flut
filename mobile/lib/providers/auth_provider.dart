@@ -10,6 +10,7 @@ class AuthProvider extends ChangeNotifier {
   User? _currentUser;
   bool _isLoading = true;
   String? _error;
+  bool _hasShownError = false;
 
   AuthProvider({
     required ApiService apiService,
@@ -84,10 +85,9 @@ class AuthProvider extends ChangeNotifier {
     String? username,
   }) async {
     try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
-
+      _setLoadingState(true);
+      _clearError(); 
+      
       final response = await _apiService.signup(
         email: email,
         password: password,
@@ -95,8 +95,9 @@ class AuthProvider extends ChangeNotifier {
         username: username,
       );
 
-      print(
-          '[AuthProvider] signup response: success=${response.success}, error=${response.error}, data=${response.data}');
+       print(
+          '[AuthProvider] signup response: success=${response.success}, error=${response.error}');
+
       if (response.success && response.data != null) {
         final authData = response.data!;
         _currentUser = authData.user;
@@ -107,21 +108,18 @@ class AuthProvider extends ChangeNotifier {
           userId: authData.user.id,
         );
 
-        _isLoading = false;
-        notifyListeners();
+        _setLoadingState(false);
         return true;
       } else {
-        _error = response.error ?? 'Signup failed';
+        _setError(response.error ?? 'Signup failed. Please try again.');
         print('[AuthProvider] signup error set: $_error');
-        _isLoading = false;
-        notifyListeners();
+        _setLoadingState(false);
         return false;
       }
     } catch (e) {
-      _error = 'An unexpected error occurred';
       print('[AuthProvider] signup catch error: $e');
-      _isLoading = false;
-      notifyListeners();
+      _setError('Network error. Please check your connection and try again.');
+      _setLoadingState(false);
       debugPrint('Signup error: $e');
       return false;
     }
@@ -132,9 +130,8 @@ class AuthProvider extends ChangeNotifier {
     required String password,
   }) async {
     try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
+      _setLoadingState(true);
+      _clearError(); // Clear any previous error
 
       final response = await _apiService.login(
         email: email,
@@ -143,6 +140,7 @@ class AuthProvider extends ChangeNotifier {
 
       print(
           '[AuthProvider] login response: success=${response.success}, error=${response.error}, data=${response.data}');
+      
       if (response.success && response.data != null) {
         final authData = response.data!;
         _currentUser = authData.user;
@@ -153,21 +151,18 @@ class AuthProvider extends ChangeNotifier {
           userId: authData.user.id,
         );
 
-        _isLoading = false;
-        notifyListeners();
+        _setLoadingState(false);
         return true;
-      } else {
-        _error = response.error ?? 'Login failed';
+    } else {
+        _setError(response.error ?? 'Login failed. Please check your credentials.');
         print('[AuthProvider] login error set: $_error');
-        _isLoading = false;
-        notifyListeners();
+        _setLoadingState(false);
         return false;
       }
     } catch (e) {
-      _error = 'An unexpected error occurred';
       print('[AuthProvider] login catch error: $e');
-      _isLoading = false;
-      notifyListeners();
+      _setError('Network error. Please check your connection and try again.');
+      _setLoadingState(false);
       debugPrint('Login error: $e');
       return false;
     }
@@ -188,17 +183,41 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  void updateUser(User user) {
-    _currentUser = user;
+  // Helper methods for cleaner state management
+  void _setLoadingState(bool loading) {
+    _isLoading = loading;
     notifyListeners();
   }
 
-  void clearError() {
-    // if (_error != null) {
-      print('[AuthProvider] clearError called, clearing error');
+  void _setError(String error) {
+    _error = error;
+    _hasShownError = false;
+    notifyListeners();
+  }
+
+  void _clearError() {
+    if (_error != null) {
       _error = null;
+      _hasShownError = false;
       notifyListeners();
-    // }
+    }
+  }
+
+  bool get shouldShowError => _error != null && !_hasShownError;
+  
+  void clearError() {
+    print('[AuthProvider] clearError called by user');
+    _clearError();
+  }
+
+  // Method to mark error as shown (for toast notifications)
+  void markErrorAsShown() {
+    _hasShownError = true;
+  }
+  
+  void updateUser(User user) {
+    _currentUser = user;
+    notifyListeners();
   }
 
   // Called by ApiService when refresh fails or user is unauthorized

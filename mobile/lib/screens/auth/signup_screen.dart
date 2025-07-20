@@ -54,11 +54,38 @@ class _SignupScreenState extends State<SignupScreen> {
           ? null
           : _usernameController.text.trim(),
     );
-    print(
-        'SignupScreen: signup success = $success, isAuthenticated = ${authProvider.isAuthenticated}');
+
     if (success && mounted) {
       context.go('/home');
+    } else if (mounted) {
+      // Show error as toast AND keep it in the UI
+      _showErrorToast(authProvider.error ?? 'Signup failed');
+      authProvider.markErrorAsShown();
     }
+  }
+
+  void _showErrorToast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red[600],
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Dismiss',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -122,6 +149,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       MinLengthValidator(2,
                           errorText: 'Name must be at least 2 characters'),
                     ]),
+                    onChanged: (_) {
+                      final authProvider = context.read<AuthProvider>();
+                      if (authProvider.error != null) {
+                        authProvider.clearError();
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -139,6 +172,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       }
                       return null;
                     },
+                    onChanged: (_) {
+                      final authProvider = context.read<AuthProvider>();
+                      if (authProvider.error != null) {
+                        authProvider.clearError();
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -153,6 +192,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       RequiredValidator(errorText: 'Email is required'),
                       EmailValidator(errorText: 'Please enter a valid email'),
                     ]),
+                    onChanged: (_) {
+                      final authProvider = context.read<AuthProvider>();
+                      if (authProvider.error != null) {
+                        authProvider.clearError();
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -180,6 +225,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       MinLengthValidator(8,
                           errorText: 'Password must be at least 8 characters'),
                     ]),
+                    onChanged: (_) {
+                      final authProvider = context.read<AuthProvider>();
+                      if (authProvider.error != null) {
+                        authProvider.clearError();
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 8),
@@ -211,12 +262,38 @@ class _SignupScreenState extends State<SignupScreen> {
                                   .withOpacity(0.3),
                             ),
                           ),
-                          child: Text(
-                            authProvider.error!,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                              fontSize: 14,
-                            ),
+                          child: Row(
+                            // ← Change from just Text to Row
+                            children: [
+                              Icon(
+                                // ← Add error icon
+                                Icons.error_outline,
+                                color: Theme.of(context).colorScheme.error,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                // ← Wrap text in Expanded
+                                child: Text(
+                                  authProvider.error!,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                // ← Add close button
+                                icon: Icon(
+                                  Icons.close,
+                                  color: Theme.of(context).colorScheme.error,
+                                  size: 18,
+                                ),
+                                onPressed: () {
+                                  authProvider.clearError();
+                                },
+                              ),
+                            ],
                           ),
                         );
                       }

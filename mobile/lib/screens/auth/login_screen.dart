@@ -20,15 +20,19 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-@override
+  @override
   void initState() {
     super.initState();
-    final authProvider = context.read<AuthProvider>();
-    if (authProvider.error != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        authProvider.clearError();
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = context.read<AuthProvider>();
+      if (authProvider.error != null) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            authProvider.clearError();
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -50,7 +54,35 @@ class _LoginScreenState extends State<LoginScreen> {
         'LoginScreen: login success = $success, isAuthenticated = ${authProvider.isAuthenticated}');
     if (success && mounted) {
       context.go('/home');
+    } else if (mounted) {
+      // Show error as toast AND keep it in the UI
+      _showErrorToast(authProvider.error ?? 'Login failed');
+      authProvider.markErrorAsShown();
     }
+  }
+
+  void _showErrorToast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red[600],
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Dismiss',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -65,6 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 60),
+                
                 // Logo and Title
                 Column(
                   children: [
@@ -95,7 +128,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 48),
+
                 // Email Field
                 CustomTextField(
                   controller: _emailController,
@@ -106,9 +141,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     RequiredValidator(errorText: 'Email is required'),
                     EmailValidator(errorText: 'Please enter a valid email'),
                   ]),
-                  // onChanged: (_) => context.read<AuthProvider>().clearError(),
+                  onChanged: (_) {
+                    // Only clear error when user starts typing after an error
+                    final authProvider = context.read<AuthProvider>();
+                    if (authProvider.error != null) {
+                      authProvider.clearError();
+                    }
+                  },
                 ),
+
                 const SizedBox(height: 16),
+                
                 // Password Field
                 CustomTextField(
                   controller: _passwordController,
@@ -129,13 +172,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator:
                       RequiredValidator(errorText: 'Password is required'),
-                  // onChanged: (_) => context.read<AuthProvider>().clearError(),
+                  onChanged: (_) {
+                    // Only clear error when user starts typing after an error
+                    final authProvider = context.read<AuthProvider>();
+                    if (authProvider.error != null) {
+                      authProvider.clearError();
+                    }
+                  },
                 ),
+
                 const SizedBox(height: 24),
-                // Error Message
+
+// Persistent Error Message
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
-                    print('Building error widget: ${authProvider.error}');
                     if (authProvider.error != null) {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
@@ -153,18 +203,41 @@ class _LoginScreenState extends State<LoginScreen> {
                                 .withOpacity(0.3),
                           ),
                         ),
-                        child: Text(
-                          authProvider.error!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                            fontSize: 14,
-                          ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Theme.of(context).colorScheme.error,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                authProvider.error!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.close,
+                                color: Theme.of(context).colorScheme.error,
+                                size: 18,
+                              ),
+                              onPressed: () {
+                                authProvider.clearError();
+                              },
+                            ),
+                          ],
                         ),
                       );
                     }
                     return const SizedBox.shrink();
                   },
                 ),
+
                 // Login Button
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
@@ -175,7 +248,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     );
                   },
                 ),
+
                 const SizedBox(height: 24),
+                
                 // Sign Up Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -190,6 +265,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
+                
                 const SizedBox(height: 40),
               ],
             ),
