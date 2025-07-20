@@ -9,12 +9,14 @@ class UserProvider extends ChangeNotifier {
 
   final Map<String, User> _userCache = {};
   final Map<String, UserStats> _statsCache = {};
+  final Map<String, bool> _followStatusCache = {};
   bool _isLoading = false;
   String? _error;
 
   // Getters
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool isFollowing(String userId) => _followStatusCache[userId] ?? false;
 
   User? getUser(String userId) => _userCache[userId];
   UserStats? getUserStats(String userId) => _statsCache[userId];
@@ -131,21 +133,53 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> fetchFollowStatus(String userId) async {
+    try {
+      final response = await _apiService.getFollowStatus(userId);
+
+      if (response.success) {
+        _followStatusCache[userId] = response.data ?? false;
+        notifyListeners();
+        return response.data ?? false;
+      } else {
+        _followStatusCache[userId] = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _followStatusCache[userId] = false;
+      notifyListeners();
+      debugPrint('Fetch follow status error: $e');
+      return false;
+    }
+  }
+
   Future<bool> followUser(String userId) async {
     try {
+      _isLoading = true;
+      notifyListeners();
+
       final response = await _apiService.followUser(userId);
 
       if (response.success) {
+        // Update follow status cache
+        _followStatusCache[userId] = true;
+
         // Refresh user stats
         await fetchUserStats(userId);
+
+        _isLoading = false;
+        notifyListeners();
         return true;
       } else {
         _error = response.error ?? 'Failed to follow user';
+        _isLoading = false;
         notifyListeners();
         return false;
       }
     } catch (e) {
       _error = 'An unexpected error occurred';
+      _isLoading = false;
       notifyListeners();
       debugPrint('Follow user error: $e');
       return false;
@@ -154,23 +188,39 @@ class UserProvider extends ChangeNotifier {
 
   Future<bool> unfollowUser(String userId) async {
     try {
+      _isLoading = true;
+      notifyListeners();
+
       final response = await _apiService.unfollowUser(userId);
 
       if (response.success) {
+        // Update follow status cache
+        _followStatusCache[userId] = false;
+
         // Refresh user stats
         await fetchUserStats(userId);
+
+        _isLoading = false;
+        notifyListeners();
         return true;
       } else {
         _error = response.error ?? 'Failed to unfollow user';
+        _isLoading = false;
         notifyListeners();
         return false;
       }
     } catch (e) {
       _error = 'An unexpected error occurred';
+      _isLoading = false;
       notifyListeners();
       debugPrint('Unfollow user error: $e');
       return false;
     }
+  }
+
+  void clearFollowStatusCache() {
+    _followStatusCache.clear();
+    notifyListeners();
   }
 
   void clearError() {

@@ -328,6 +328,23 @@ class ApiService {
     }
   }
 
+  Future<ApiResponse<bool>> getFollowStatus(String userId) async {
+    try {
+      final response = await _dio.get('/follow/$userId/status');
+
+      return ApiResponse<bool>(
+        success: response.data['success'],
+        data: response.data['data']['isFollowing'] ?? false,
+      );
+    } on DioException catch (e) {
+      return ApiResponse<bool>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+        data: false, // Default to not following on error
+      );
+    }
+  }
+
   // Add this method for manual refresh
   Future<ApiResponse<Map<String, dynamic>>> refreshAccessToken(
       String refreshToken) async {
