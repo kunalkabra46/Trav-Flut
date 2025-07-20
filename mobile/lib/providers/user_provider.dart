@@ -26,7 +26,7 @@ class UserProvider extends ChangeNotifier {
       notifyListeners();
 
       final response = await _apiService.getUser(userId);
-      
+
       if (response.success && response.data != null) {
         _userCache[userId] = response.data!;
         _isLoading = false;
@@ -50,7 +50,7 @@ class UserProvider extends ChangeNotifier {
   Future<UserStats?> fetchUserStats(String userId) async {
     try {
       final response = await _apiService.getUserStats(userId);
-      
+
       if (response.success && response.data != null) {
         _statsCache[userId] = response.data!;
         notifyListeners();
@@ -74,6 +74,7 @@ class UserProvider extends ChangeNotifier {
     String? username,
     String? bio,
     String? avatarUrl,
+    bool? isPrivate,
   }) async {
     try {
       _isLoading = true;
@@ -86,6 +87,7 @@ class UserProvider extends ChangeNotifier {
         username: username,
         bio: bio,
         avatarUrl: avatarUrl,
+        isPrivate: isPrivate,
       );
 
       if (response.success && response.data != null) {

@@ -141,7 +141,8 @@ class TripsTab extends StatelessWidget {
                 icon: const Icon(Icons.add),
                 onPressed: tripProvider.hasOngoingTrip
                     ? null
-                    : () => context.go('/create-trip'),
+                    : () =>
+                        context.push('/create-trip', extra: {'from': '/home'}),
               );
             },
           ),
@@ -158,7 +159,7 @@ class TripsTab extends StatelessWidget {
               ],
             );
           }
-          
+
           return _buildTripsList(context, tripProvider);
         },
       ),
@@ -190,9 +191,9 @@ class TripsTab extends StatelessWidget {
               Text(
                 'Ongoing Trip',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
               const Spacer(),
               Container(
@@ -216,16 +217,16 @@ class TripsTab extends StatelessWidget {
           Text(
             trip.title,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 4),
           Text(
             trip.destinations.join(', '),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(0.9),
-            ),
+                  color: Colors.white.withOpacity(0.9),
+                ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -263,7 +264,7 @@ class TripsTab extends StatelessWidget {
     }
 
     final trips = tripProvider.trips;
-    
+
     if (trips.isEmpty) {
       return Center(
         child: Column(
@@ -278,22 +279,23 @@ class TripsTab extends StatelessWidget {
             Text(
               'No Trips Yet',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Colors.grey[600],
-              ),
+                    color: Colors.grey[600],
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               'Start documenting your travel adventures',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[500],
-              ),
+                    color: Colors.grey[500],
+                  ),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: tripProvider.hasOngoingTrip
                   ? null
-                  : () => context.go('/create-trip'),
+                  : () =>
+                      context.push('/create-trip', extra: {'from': '/home'}),
               icon: const Icon(Icons.add),
               label: const Text('Start Your First Trip'),
             ),
@@ -325,12 +327,14 @@ class TripsTab extends StatelessWidget {
             Container(
               height: 200,
               decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(12)),
                 color: Colors.grey[200],
               ),
               child: trip.coverMediaUrl != null
                   ? ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(12)),
                       child: Image.network(
                         trip.coverMediaUrl!,
                         width: double.infinity,
@@ -343,7 +347,7 @@ class TripsTab extends StatelessWidget {
                     )
                   : _buildPlaceholderImage(context, trip),
             ),
-            
+
             // Trip info
             Padding(
               padding: const EdgeInsets.all(16),
@@ -355,32 +359,32 @@ class TripsTab extends StatelessWidget {
                       Expanded(
                         child: Text(
                           trip.title,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                       ),
                       _buildStatusBadge(context, trip.status),
                     ],
                   ),
-                  
                   const SizedBox(height: 8),
-                  
                   Row(
                     children: [
-                      Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                      Icon(Icons.location_on,
+                          size: 16, color: Colors.grey[600]),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           trip.destinations.join(', '),
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
                         ),
                       ),
                     ],
                   ),
-                  
                   if (trip.description != null) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -390,9 +394,7 @@ class TripsTab extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  
                   const SizedBox(height: 12),
-                  
                   Row(
                     children: [
                       _buildStatChip(
@@ -401,7 +403,8 @@ class TripsTab extends StatelessWidget {
                         '${trip.counts?.threadEntries ?? 0} entries',
                       ),
                       const SizedBox(width: 8),
-                      if (trip.counts?.participants != null && trip.counts!.participants > 0)
+                      if (trip.counts?.participants != null &&
+                          trip.counts!.participants > 0)
                         _buildStatChip(
                           context,
                           Icons.people,
@@ -458,7 +461,7 @@ class TripsTab extends StatelessWidget {
   Widget _buildStatusBadge(BuildContext context, TripStatus status) {
     Color color;
     String label;
-    
+
     switch (status) {
       case TripStatus.upcoming:
         color = Colors.orange;
@@ -473,7 +476,7 @@ class TripsTab extends StatelessWidget {
         label = 'Completed';
         break;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -567,7 +570,7 @@ class ProfileTab extends StatelessWidget {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
         final user = authProvider.currentUser;
-        
+
         if (user == null) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -617,10 +620,10 @@ class ProfileTab extends StatelessWidget {
                       CircleAvatar(
                         radius: 40,
                         backgroundColor: Theme.of(context).colorScheme.primary,
-                        backgroundImage: user.avatarUrl != null 
-                            ? NetworkImage(user.avatarUrl!) 
+                        backgroundImage: user.avatarUrl != null
+                            ? NetworkImage(user.avatarUrl!)
                             : null,
-                        child: user.avatarUrl == null 
+                        child: user.avatarUrl == null
                             ? Text(
                                 user.name?.substring(0, 1).toUpperCase() ?? 'U',
                                 style: const TextStyle(
@@ -631,15 +634,15 @@ class ProfileTab extends StatelessWidget {
                               )
                             : null,
                       ),
-                      
+
                       const SizedBox(height: 16),
-                      
+
                       // Name
                       Text(
                         user.name ?? 'User',
                         style: Theme.of(context).textTheme.headlineMedium,
                       ),
-                      
+
                       // Username
                       if (user.username != null) ...[
                         const SizedBox(height: 4),
@@ -648,7 +651,7 @@ class ProfileTab extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ],
-                      
+
                       // Bio
                       if (user.bio != null) ...[
                         const SizedBox(height: 12),
@@ -658,9 +661,9 @@ class ProfileTab extends StatelessWidget {
                           textAlign: TextAlign.center,
                         ),
                       ],
-                      
+
                       const SizedBox(height: 20),
-                      
+
                       // Stats Row
                       Consumer<TripProvider>(
                         builder: (context, tripProvider, child) {
@@ -668,16 +671,17 @@ class ProfileTab extends StatelessWidget {
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              _buildStatColumn(context, tripCount.toString(), 'Trips'),
+                              _buildStatColumn(
+                                  context, tripCount.toString(), 'Trips'),
                               _buildStatColumn(context, '0', 'Followers'),
                               _buildStatColumn(context, '0', 'Following'),
                             ],
                           );
                         },
                       ),
-                      
+
                       const SizedBox(height: 20),
-                      
+
                       // Edit Profile Button
                       SizedBox(
                         width: double.infinity,
@@ -691,14 +695,14 @@ class ProfileTab extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Recent Trips Section
                 Consumer<TripProvider>(
                   builder: (context, tripProvider, child) {
                     final recentTrips = tripProvider.trips.take(3).toList();
-                    
+
                     return Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
@@ -719,7 +723,8 @@ class ProfileTab extends StatelessWidget {
                             children: [
                               Text(
                                 'Recent Trips',
-                                style: Theme.of(context).textTheme.headlineSmall,
+                                style:
+                                    Theme.of(context).textTheme.headlineSmall,
                               ),
                               const Spacer(),
                               if (tripProvider.trips.isNotEmpty)
@@ -732,9 +737,7 @@ class ProfileTab extends StatelessWidget {
                                 ),
                             ],
                           ),
-                          
                           const SizedBox(height: 16),
-                          
                           if (recentTrips.isEmpty)
                             const Center(
                               child: Column(
@@ -771,7 +774,8 @@ class ProfileTab extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: Colors.grey[50],
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.grey[200]!),
+                                    border:
+                                        Border.all(color: Colors.grey[200]!),
                                   ),
                                   child: Row(
                                     children: [
@@ -779,30 +783,43 @@ class ProfileTab extends StatelessWidget {
                                         width: 48,
                                         height: 48,
                                         decoration: BoxDecoration(
-                                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(8),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary
+                                              .withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
                                         child: Icon(
                                           Icons.travel_explore,
-                                          color: Theme.of(context).colorScheme.primary,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
                                         ),
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               trip.title,
-                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleSmall
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
                                             ),
                                             Text(
                                               trip.destinations.join(', '),
-                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                color: Colors.grey[600],
-                                              ),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color: Colors.grey[600],
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -835,8 +852,8 @@ class ProfileTab extends StatelessWidget {
         Text(
           count,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 4),
         Text(

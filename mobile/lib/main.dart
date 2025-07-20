@@ -139,8 +139,7 @@ class TripThreadAppRouter extends StatelessWidget {
     );
   }
 
-  String?
-      _lastLocation; // place this outside the function (as static or top-level)
+  static String? _lastLocation;
 
   GoRouter _createRouter(AuthProvider authProvider) {
     return GoRouter(

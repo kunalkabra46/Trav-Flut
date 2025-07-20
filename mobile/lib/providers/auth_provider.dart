@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:tripthread/models/user.dart';
 import 'package:tripthread/services/api_service.dart';
 import 'package:tripthread/services/storage_service.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _apiService;

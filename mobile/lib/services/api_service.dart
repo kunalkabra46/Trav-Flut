@@ -6,8 +6,8 @@ import 'package:flutter/foundation.dart';
 
 class ApiService {
   // static const String baseUrl = 'http://localhost:3000/api';
-  // static const String baseUrl = 'http://10.61.114.100:3000/api';
-  static const String baseUrl = 'http://192.168.0.110:3000/api';
+  static const String baseUrl = 'http://10.61.114.100:3000/api';
+  // static const String baseUrl = 'http://192.168.0.110:3000/api';
 
   late final Dio _dio;
   StorageService? _storageService;
@@ -190,6 +190,7 @@ class ApiService {
     String? username,
     String? bio,
     String? avatarUrl,
+    bool? isPrivate,
   }) async {
     try {
       final response = await _dio.put('/users/$userId', data: {
@@ -197,6 +198,7 @@ class ApiService {
         if (username != null) 'username': username,
         if (bio != null) 'bio': bio,
         if (avatarUrl != null) 'avatarUrl': avatarUrl,
+        if (isPrivate != null) 'isPrivate': isPrivate,
       });
 
       return ApiResponse<User>.fromJson(

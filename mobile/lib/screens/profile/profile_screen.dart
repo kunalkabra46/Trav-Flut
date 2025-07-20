@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tripthread/providers/auth_provider.dart';
 import 'package:tripthread/providers/user_provider.dart';
 import 'package:tripthread/models/user.dart';
+import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -54,7 +55,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return Scaffold(
           appBar: AppBar(
             title: Text(profileUser.name ?? 'Profile'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                // Use explicit navigation instead of pop
+                context.go('/home');
+              },
+            ),
             actions: [
+              if (isOwnProfile)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () {
+                    // Pass current route as 'from' parameter
+                    context.push('/edit-profile',
+                        extra: {'from': '/profile/${widget.userId}'});
+                  },
+                ),
               if (isOwnProfile)
                 IconButton(
                   icon: const Icon(Icons.settings_outlined),
@@ -69,10 +86,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               children: [
                 // Profile Header
-                _buildProfileHeader(context, profileUser, userStats, isOwnProfile),
-                
+                _buildProfileHeader(
+                    context, profileUser, userStats, isOwnProfile),
+
                 const SizedBox(height: 24),
-                
+
                 // Trips Section
                 _buildTripsSection(context, profileUser, isOwnProfile),
               ],
@@ -108,10 +126,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           CircleAvatar(
             radius: 40,
             backgroundColor: Theme.of(context).colorScheme.primary,
-            backgroundImage: user.avatarUrl != null 
-                ? NetworkImage(user.avatarUrl!) 
-                : null,
-            child: user.avatarUrl == null 
+            backgroundImage:
+                user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+            child: user.avatarUrl == null
                 ? Text(
                     user.name?.substring(0, 1).toUpperCase() ?? 'U',
                     style: const TextStyle(
@@ -122,9 +139,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   )
                 : null,
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Name and Privacy Indicator
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -143,7 +160,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ],
           ),
-          
+
           // Username
           if (user.username != null) ...[
             const SizedBox(height: 4),
@@ -152,7 +169,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
-          
+
           // Bio
           if (user.bio != null) ...[
             const SizedBox(height: 12),
@@ -162,22 +179,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               textAlign: TextAlign.center,
             ),
           ],
-          
+
           const SizedBox(height: 20),
-          
+
           // Stats Row
           if (stats != null)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildStatColumn(context, stats.tripCount.toString(), 'Trips'),
-                _buildStatColumn(context, stats.followerCount.toString(), 'Followers'),
-                _buildStatColumn(context, stats.followingCount.toString(), 'Following'),
+                _buildStatColumn(
+                    context, stats.followerCount.toString(), 'Followers'),
+                _buildStatColumn(
+                    context, stats.followingCount.toString(), 'Following'),
               ],
             ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Action Buttons
           if (isOwnProfile)
             SizedBox(
@@ -204,7 +223,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildTripsSection(BuildContext context, User user, bool isOwnProfile) {
+  Widget _buildTripsSection(
+      BuildContext context, User user, bool isOwnProfile) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -225,9 +245,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             isOwnProfile ? 'Your Trips' : '${user.name}\'s Trips',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-          
           const SizedBox(height: 16),
-          
           const Center(
             child: Column(
               children: [
@@ -258,8 +276,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text(
           count,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 4),
         Text(

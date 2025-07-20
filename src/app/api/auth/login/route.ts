@@ -49,6 +49,10 @@ export async function POST(request: NextRequest) {
       data: {
         user: {
           ...userWithoutPassword,
+          username: user.username ?? undefined,
+          name: user.name ?? undefined,
+          avatarUrl: user.avatarUrl ?? undefined,
+          bio: user.bio ?? undefined,
           createdAt: user.createdAt.toISOString(),
           updatedAt: user.updatedAt.toISOString()
         },

@@ -18,6 +18,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _usernameController;
   late final TextEditingController _bioController;
+  bool? _isPrivate;
 
   @override
   void initState() {
@@ -26,6 +27,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController = TextEditingController(text: user?.name ?? '');
     _usernameController = TextEditingController(text: user?.username ?? '');
     _bioController = TextEditingController(text: user?.bio ?? '');
+    _isPrivate = user?.isPrivate ?? false;
   }
 
   @override
@@ -48,12 +50,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final success = await userProvider.updateProfile(
       userId: currentUser.id,
       name: _nameController.text.trim(),
-      username: _usernameController.text.trim().isEmpty 
-          ? null 
+      username: _usernameController.text.trim().isEmpty
+          ? null
           : _usernameController.text.trim(),
-      bio: _bioController.text.trim().isEmpty 
-          ? null 
+      bio: _bioController.text.trim().isEmpty
+          ? null
           : _bioController.text.trim(),
+      isPrivate: _isPrivate,
     );
 
     if (success && mounted) {
@@ -62,20 +65,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (updatedUser != null) {
         authProvider.updateUser(updatedUser);
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully')),
       );
-      context.pop();
+
+      // Use the same explicit navigation pattern
+      final extra = GoRouterState.of(context).extra;
+      final from = (extra is Map && extra['from'] != null)
+          ? extra['from'] as String
+          : '/home';
+
+      context.go(from);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final extra = GoRouterState.of(context).extra;
+    final authProvider = context.read<AuthProvider>();
+    final from = (extra is Map && extra['from'] != null)
+        ? extra['from'] as String
+        : '/profile/${authProvider.currentUser?.id}';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
-        actions: [
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            context.go(from);
+          },
+        ),
+          actions: [
           Consumer<UserProvider>(
             builder: (context, userProvider, child) {
               return LoadingButton(
@@ -84,10 +106,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 style: TextButton.styleFrom(),
                 child: const Text('Save'),
               );
-            },
-          ),
-        ],
-      ),
+              },
+            ),
+          ],
+        ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -103,13 +125,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         final user = authProvider.currentUser;
                         return CircleAvatar(
                           radius: 50,
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          backgroundImage: user?.avatarUrl != null 
-                              ? NetworkImage(user!.avatarUrl!) 
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          backgroundImage: user?.avatarUrl != null
+                              ? NetworkImage(user!.avatarUrl!)
                               : null,
-                          child: user?.avatarUrl == null 
+                          child: user?.avatarUrl == null
                               ? Text(
-                                  user?.name?.substring(0, 1).toUpperCase() ?? 'U',
+                                  user?.name?.substring(0, 1).toUpperCase() ??
+                                      'U',
                                   style: const TextStyle(
                                     fontSize: 28,
                                     fontWeight: FontWeight.bold,
@@ -148,9 +172,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 32),
-              
+
               // Name Field
               CustomTextField(
                 controller: _nameController,
@@ -166,9 +190,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Username Field
               CustomTextField(
                 controller: _usernameController,
@@ -181,9 +205,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Bio Field
               CustomTextField(
                 controller: _bioController,
@@ -198,9 +222,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Error Message
               Consumer<UserProvider>(
                 builder: (context, userProvider, child) {
@@ -209,10 +233,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .error
+                            .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .error
+                              .withOpacity(0.3),
                         ),
                       ),
                       child: Text(
@@ -227,41 +257,40 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   return const SizedBox.shrink();
                 },
               ),
-              
+
               // Privacy Toggle
-              Consumer2<AuthProvider, UserProvider>(
-                builder: (context, authProvider, userProvider, child) {
-                  final user = authProvider.currentUser;
-                  return Card(
-                    child: ListTile(
-                      leading: Icon(
-                        user?.isPrivate == true 
-                            ? Icons.lock_outlined 
-                            : Icons.public_outlined,
-                      ),
-                      title: const Text('Private Account'),
-                      subtitle: Text(
-                        user?.isPrivate == true
-                            ? 'Only followers can see your trips'
-                            : 'Anyone can see your trips',
-                      ),
-                      trailing: Switch(
-                        value: user?.isPrivate ?? false,
-                        onChanged: (value) async {
-                          if (user != null) {
-                            final success = await userProvider.togglePrivacy(user.id);
-                            if (success) {
-                              final updatedUser = userProvider.getUser(user.id);
-                              if (updatedUser != null) {
-                                authProvider.updateUser(updatedUser);
-                              }
-                            }
-                          }
-                        },
-                      ),
-                    ),
-                  );
-                },
+              Card(
+                child: ListTile(
+                  leading: Icon(
+                    _isPrivate == true
+                        ? Icons.lock_outlined
+                        : Icons.public_outlined,
+                  ),
+                  title: const Text('Private Account'),
+                  subtitle: Text(
+                    _isPrivate == true
+                        ? 'Only followers can see your trips'
+                        : 'Anyone can see your trips',
+                  ),
+                  trailing: Switch(
+                    value: _isPrivate ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _isPrivate = value;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            value
+                                ? 'Profile set to private'
+                                : 'Profile set to public',
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
             ],
           ),
