@@ -105,17 +105,19 @@ class TripThreadAppRouter extends StatelessWidget {
             return Stack(
               children: [
                 child ?? const SizedBox.shrink(),
-                // 👇 Only show splash while loading, with debug print
-                if (authProvider.isLoading) ...[
-                  (() {
+                // Splash overlay listens only to routingNotifier to avoid heavy rebuilds
+                AnimatedBuilder(
+                  animation: authProvider.routingNotifier,
+                  builder: (context, _) {
+                    if (!authProvider.isLoading) return const SizedBox.shrink();
                     debugPrint('Rendering SplashScreen');
-                    return IgnorePointer(
+                    return const IgnorePointer(
                       ignoring: false,
-                      child: const SplashScreen(),
+                      child: SplashScreen(),
                     );
-                  })(),
-                ],
-                // 👇 Offline banner
+                  },
+                ),
+                // Offline banner
                 if (!connectivity.isConnected)
                   Positioned(
                     top: MediaQuery.of(context).padding.top,
@@ -161,14 +163,13 @@ class TripThreadAppRouter extends StatelessWidget {
           ),
         ),
       ),
-      refreshListenable: authProvider,
+      refreshListenable: authProvider.routingNotifier,
       redirect: (context, state) {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
         final isLoading = authProvider.isLoading;
         final isLoggedIn = authProvider.isAuthenticated;
         final location = state.uri.toString();
 
-        // ✅ Log only when location actually changes
         if (location != _lastLocation) {
           print('[GoRouter] location changed to: $location');
           _lastLocation = location;

@@ -23,17 +23,6 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscurePassword = true;
 
   @override
-  void initState() {
-    super.initState();
-    final authProvider = context.read<AuthProvider>();
-    if (authProvider.error != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        authProvider.clearError();
-      });
-    }
-  }
-
-  @override
   void dispose() {
     _nameController.dispose();
     _usernameController.dispose();
@@ -58,34 +47,9 @@ class _SignupScreenState extends State<SignupScreen> {
     if (success && mounted) {
       context.go('/home');
     } else if (mounted) {
-      // Show error as toast AND keep it in the UI
-      _showErrorToast(authProvider.error ?? 'Signup failed');
+      // Persist inline error; do not auto-dismiss via SnackBar
       authProvider.markErrorAsShown();
     }
-  }
-
-  void _showErrorToast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.red[600],
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'Dismiss',
-          textColor: Colors.white,
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
-      ),
-    );
   }
 
   @override
@@ -245,59 +209,61 @@ class _SignupScreenState extends State<SignupScreen> {
                   // Error Message
                   Consumer<AuthProvider>(
                     builder: (context, authProvider, child) {
-                      if (authProvider.error != null) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .error
-                                .withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
+                      return AnimatedBuilder(
+                        animation: authProvider.uiNotifier,
+                        builder: (context, _) {
+                          if (authProvider.error == null) {
+                            return const SizedBox.shrink();
+                          }
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
                               color: Theme.of(context)
                                   .colorScheme
                                   .error
-                                  .withOpacity(0.3),
-                            ),
-                          ),
-                          child: Row(
-                            // ← Change from just Text to Row
-                            children: [
-                              Icon(
-                                // ← Add error icon
-                                Icons.error_outline,
-                                color: Theme.of(context).colorScheme.error,
-                                size: 20,
+                                  .withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .error
+                                    .withOpacity(0.3),
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                // ← Wrap text in Expanded
-                                child: Text(
-                                  authProvider.error!,
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.error,
-                                    fontSize: 14,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Theme.of(context).colorScheme.error,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    authProvider.error!,
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(context).colorScheme.error,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              IconButton(
-                                // ← Add close button
-                                icon: Icon(
-                                  Icons.close,
-                                  color: Theme.of(context).colorScheme.error,
-                                  size: 18,
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: Theme.of(context).colorScheme.error,
+                                    size: 18,
+                                  ),
+                                  onPressed: () {
+                                    authProvider.clearError();
+                                  },
                                 ),
-                                onPressed: () {
-                                  authProvider.clearError();
-                                },
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
+                              ],
+                            ),
+                          );
+                        },
+                      );
                     },
                   ),
 
@@ -323,7 +289,13 @@ class _SignupScreenState extends State<SignupScreen> {
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       TextButton(
-                        onPressed: () => context.go('/login'),
+                        onPressed: () {
+                          final authProvider = context.read<AuthProvider>();
+                          if (authProvider.error != null) {
+                            authProvider.clearError();
+                          }
+                          context.go('/login');
+                        },
                         child: const Text('Sign In'),
                       ),
                     ],

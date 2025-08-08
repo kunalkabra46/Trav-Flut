@@ -12,9 +12,10 @@ class AuthProvider extends ChangeNotifier {
   String? _error;
   bool _hasShownError = false;
 
-  // Notifier dedicated for UI-only updates (e.g., error banner),
-  // so we don't trigger global rebuilds/route refreshes.
+  // Notifier dedicated for UI-only updates (e.g., error banner)
   final ChangeNotifier uiNotifier = ChangeNotifier();
+  // Notifier dedicated for routing-related changes only (auth/loading)
+  final ChangeNotifier routingNotifier = ChangeNotifier();
 
   AuthProvider({
     required ApiService apiService,
@@ -33,8 +34,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _initializeAuth() async {
     print('AuthProvider: Starting initialization');
-    _isLoading = true;
-    notifyListeners();
+    _setLoadingState(true);
     try {
       print('AuthProvider: Checking tokens...');
       final hasTokens = await _storageService
@@ -65,6 +65,8 @@ class AuthProvider extends ChangeNotifier {
               'AuthProvider: getUser response = ${response.success} | ${response.data} | ${response.error}');
           if (response.success && response.data != null) {
             _currentUser = response.data;
+            routingNotifier.notifyListeners();
+            notifyListeners();
           } else {
             print('AuthProvider: Invalid tokens, clearing');
             await _storageService.clearTokens();
@@ -73,12 +75,11 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (e, stack) {
       _error = 'Failed to initialize authentication';
+      uiNotifier.notifyListeners();
       print('AuthProvider: Exception in _initializeAuth: $e\n$stack');
       await _storageService.clearTokens();
     } finally {
-      print('AuthProvider: Initialization complete, isLoading = false');
-      _isLoading = false;
-      notifyListeners();
+      _setLoadingState(false);
     }
   }
 
@@ -105,6 +106,8 @@ class AuthProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         final authData = response.data!;
         _currentUser = authData.user;
+        routingNotifier.notifyListeners();
+        notifyListeners();
 
         await _storageService.saveTokens(
           accessToken: authData.accessToken,
@@ -148,6 +151,8 @@ class AuthProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         final authData = response.data!;
         _currentUser = authData.user;
+        routingNotifier.notifyListeners();
+        notifyListeners();
 
         await _storageService.saveTokens(
           accessToken: authData.accessToken,
@@ -183,14 +188,16 @@ class AuthProvider extends ChangeNotifier {
       debugPrint('Logout error: $e');
     } finally {
       _currentUser = null;
-      await _storageService.clearTokens();
+      routingNotifier.notifyListeners();
       notifyListeners();
+      await _storageService.clearTokens();
     }
   }
 
   // Helper methods for cleaner state management
   void _setLoadingState(bool loading) {
     _isLoading = loading;
+    routingNotifier.notifyListeners();
     notifyListeners();
   }
 
@@ -229,6 +236,7 @@ class AuthProvider extends ChangeNotifier {
   // Called by ApiService when refresh fails or user is unauthorized
   Future<void> forceLogout({String? message}) async {
     _currentUser = null;
+    routingNotifier.notifyListeners();
     await _storageService.clearTokens();
     _error = message;
     notifyListeners();
