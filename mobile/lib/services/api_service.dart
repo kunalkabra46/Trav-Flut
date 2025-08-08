@@ -331,11 +331,13 @@ class ApiService {
 
   Future<ApiResponse<bool>> getFollowStatus(String userId) async {
     try {
-      final response = await _dio.get('/follow/$userId/status');
+      final response = await _dio.get('/follow/$userId');
 
       return ApiResponse<bool>(
         success: response.data['success'],
-        data: response.data['data']['isFollowing'] ?? false,
+        data: (response.data['data'] != null)
+            ? (response.data['data']['isFollowing'] ?? false)
+            : false,
       );
     } on DioException catch (e) {
       return ApiResponse<bool>(
