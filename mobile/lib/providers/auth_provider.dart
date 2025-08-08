@@ -12,6 +12,10 @@ class AuthProvider extends ChangeNotifier {
   String? _error;
   bool _hasShownError = false;
 
+  // Notifier dedicated for UI-only updates (e.g., error banner),
+  // so we don't trigger global rebuilds/route refreshes.
+  final ChangeNotifier uiNotifier = ChangeNotifier();
+
   AuthProvider({
     required ApiService apiService,
     required StorageService storageService,
@@ -86,8 +90,8 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     try {
       _setLoadingState(true);
-      _clearError(); 
-      
+      _clearError();
+
       final response = await _apiService.signup(
         email: email,
         password: password,
@@ -95,7 +99,7 @@ class AuthProvider extends ChangeNotifier {
         username: username,
       );
 
-       print(
+      print(
           '[AuthProvider] signup response: success=${response.success}, error=${response.error}');
 
       if (response.success && response.data != null) {
@@ -140,7 +144,7 @@ class AuthProvider extends ChangeNotifier {
 
       print(
           '[AuthProvider] login response: success=${response.success}, error=${response.error}, data=${response.data}');
-      
+
       if (response.success && response.data != null) {
         final authData = response.data!;
         _currentUser = authData.user;
@@ -153,8 +157,9 @@ class AuthProvider extends ChangeNotifier {
 
         _setLoadingState(false);
         return true;
-    } else {
-        _setError(response.error ?? 'Login failed. Please check your credentials.');
+      } else {
+        _setError(
+            response.error ?? 'Login failed. Please check your credentials.');
         print('[AuthProvider] login error set: $_error');
         _setLoadingState(false);
         return false;
@@ -192,19 +197,19 @@ class AuthProvider extends ChangeNotifier {
   void _setError(String error) {
     _error = error;
     _hasShownError = false;
-    notifyListeners();
+    uiNotifier.notifyListeners();
   }
 
   void _clearError() {
     if (_error != null) {
       _error = null;
       _hasShownError = false;
-      notifyListeners();
+      uiNotifier.notifyListeners();
     }
   }
 
   bool get shouldShowError => _error != null && !_hasShownError;
-  
+
   void clearError() {
     print('[AuthProvider] clearError called by user');
     _clearError();
@@ -213,8 +218,9 @@ class AuthProvider extends ChangeNotifier {
   // Method to mark error as shown (for toast notifications)
   void markErrorAsShown() {
     _hasShownError = true;
+    uiNotifier.notifyListeners();
   }
-  
+
   void updateUser(User user) {
     _currentUser = user;
     notifyListeners();
