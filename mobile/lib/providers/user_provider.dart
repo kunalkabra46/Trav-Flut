@@ -226,7 +226,7 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> followUser(String userId) async {
+  Future<bool> followUser(String userId, {String? currentUserId}) async {
     try {
       _isLoading = true;
       notifyListeners();
@@ -237,8 +237,13 @@ class UserProvider extends ChangeNotifier {
         // Update follow status cache
         _followStatusCache[userId] = true;
 
-        // Refresh user stats
+        // Refresh target user's stats
         await fetchUserStats(userId);
+
+        // Refresh current user's stats if provided
+        if (currentUserId != null) {
+          await fetchUserStats(currentUserId);
+        }
 
         _isLoading = false;
         notifyListeners();
@@ -258,7 +263,7 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> unfollowUser(String userId) async {
+  Future<bool> unfollowUser(String userId, {String? currentUserId}) async {
     try {
       _isLoading = true;
       notifyListeners();
@@ -269,8 +274,13 @@ class UserProvider extends ChangeNotifier {
         // Update follow status cache
         _followStatusCache[userId] = false;
 
-        // Refresh user stats
+        // Refresh target user's stats
         await fetchUserStats(userId);
+
+        // Refresh current user's stats if provided
+        if (currentUserId != null) {
+          await fetchUserStats(currentUserId);
+        }
 
         _isLoading = false;
         notifyListeners();
@@ -285,7 +295,6 @@ class UserProvider extends ChangeNotifier {
       _error = 'An unexpected error occurred';
       _isLoading = false;
       notifyListeners();
-      debugPrint('Unfollow user error: $e');
       return false;
     }
   }
@@ -304,5 +313,10 @@ class UserProvider extends ChangeNotifier {
     _userCache.clear();
     _statsCache.clear();
     notifyListeners();
+  }
+
+  // Method to refresh current user's stats after follow/unfollow actions
+  Future<void> refreshCurrentUserStats(String currentUserId) async {
+    await fetchUserStats(currentUserId);
   }
 }

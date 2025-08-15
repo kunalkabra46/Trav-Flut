@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tripthread/providers/user_provider.dart';
-import 'package:tripthread/services/api_service.dart';
+import 'package:tripthread/providers/auth_provider.dart';
 
 class DiscoverTab extends StatefulWidget {
   const DiscoverTab({super.key});
@@ -73,13 +73,14 @@ class _DiscoverTabState extends State<DiscoverTab> {
 
   Future<void> _toggleFollow(String userId, bool isCurrentlyFollowing) async {
     final userProvider = context.read<UserProvider>();
-    final apiService = context.read<ApiService>();
+    final authProvider = context.read<AuthProvider>();
+    final currentUserId = authProvider.currentUser?.id;
 
     try {
       if (isCurrentlyFollowing) {
-        await apiService.unfollowUser(userId);
+        await userProvider.unfollowUser(userId, currentUserId: currentUserId);
       } else {
-        await apiService.followUser(userId);
+        await userProvider.followUser(userId, currentUserId: currentUserId);
       }
 
       // Update local state optimistically
