@@ -9,21 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tripthread/main.dart';
-import 'package:tripthread/services/storage_service.dart';
-import 'package:tripthread/services/api_service.dart';
-import 'package:tripthread/services/trip_service.dart';
-import 'package:tripthread/services/connectivity_service.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(
-      TripThreadApp(
-        storageService: StorageService(),
-        apiService: ApiService(),
-        tripService: TripService(),
-        connectivityService: ConnectivityService(),
-      ),
+      TripThreadAppRouter(),
     );
 
     // Verify that our counter starts at 0.

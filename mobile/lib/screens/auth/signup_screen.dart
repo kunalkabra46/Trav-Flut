@@ -23,17 +23,6 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscurePassword = true;
 
   @override
-  void initState() {
-    super.initState();
-    final authProvider = context.read<AuthProvider>();
-    if (authProvider.error != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        authProvider.clearError();
-      });
-    }
-  }
-
-  @override
   void dispose() {
     _nameController.dispose();
     _usernameController.dispose();
@@ -54,10 +43,12 @@ class _SignupScreenState extends State<SignupScreen> {
           ? null
           : _usernameController.text.trim(),
     );
-    print(
-        'SignupScreen: signup success = $success, isAuthenticated = ${authProvider.isAuthenticated}');
+
     if (success && mounted) {
       context.go('/home');
+    } else if (mounted) {
+      // Persist inline error; do not auto-dismiss via SnackBar
+      authProvider.markErrorAsShown();
     }
   }
 
@@ -122,6 +113,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       MinLengthValidator(2,
                           errorText: 'Name must be at least 2 characters'),
                     ]),
+                    onChanged: (_) {
+                      final authProvider = context.read<AuthProvider>();
+                      if (authProvider.error != null) {
+                        authProvider.clearError();
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -139,6 +136,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       }
                       return null;
                     },
+                    onChanged: (_) {
+                      final authProvider = context.read<AuthProvider>();
+                      if (authProvider.error != null) {
+                        authProvider.clearError();
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -153,6 +156,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       RequiredValidator(errorText: 'Email is required'),
                       EmailValidator(errorText: 'Please enter a valid email'),
                     ]),
+                    onChanged: (_) {
+                      final authProvider = context.read<AuthProvider>();
+                      if (authProvider.error != null) {
+                        authProvider.clearError();
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -180,6 +189,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       MinLengthValidator(8,
                           errorText: 'Password must be at least 8 characters'),
                     ]),
+                    onChanged: (_) {
+                      final authProvider = context.read<AuthProvider>();
+                      if (authProvider.error != null) {
+                        authProvider.clearError();
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 8),
@@ -194,33 +209,61 @@ class _SignupScreenState extends State<SignupScreen> {
                   // Error Message
                   Consumer<AuthProvider>(
                     builder: (context, authProvider, child) {
-                      if (authProvider.error != null) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .error
-                                .withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
+                      return AnimatedBuilder(
+                        animation: authProvider.uiNotifier,
+                        builder: (context, _) {
+                          if (authProvider.error == null) {
+                            return const SizedBox.shrink();
+                          }
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
                               color: Theme.of(context)
                                   .colorScheme
                                   .error
-                                  .withOpacity(0.3),
+                                  .withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .error
+                                    .withOpacity(0.3),
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            authProvider.error!,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                              fontSize: 14,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Theme.of(context).colorScheme.error,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    authProvider.error!,
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(context).colorScheme.error,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: Theme.of(context).colorScheme.error,
+                                    size: 18,
+                                  ),
+                                  onPressed: () {
+                                    authProvider.clearError();
+                                  },
+                                ),
+                              ],
                             ),
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
+                          );
+                        },
+                      );
                     },
                   ),
 
@@ -246,7 +289,13 @@ class _SignupScreenState extends State<SignupScreen> {
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       TextButton(
-                        onPressed: () => context.go('/login'),
+                        onPressed: () {
+                          final authProvider = context.read<AuthProvider>();
+                          if (authProvider.error != null) {
+                            authProvider.clearError();
+                          }
+                          context.go('/login');
+                        },
                         child: const Text('Sign In'),
                       ),
                     ],

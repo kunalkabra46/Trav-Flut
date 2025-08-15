@@ -64,6 +64,10 @@ export async function PATCH(
 
     const userProfile: UserProfile = {
       ...updatedUser,
+      username: updatedUser.username ?? undefined,
+      name: updatedUser.name ?? undefined,
+      avatarUrl: updatedUser.avatarUrl ?? undefined,
+      bio: updatedUser.bio ?? undefined,
       createdAt: updatedUser.createdAt.toISOString(),
       updatedAt: updatedUser.updatedAt.toISOString()
     }

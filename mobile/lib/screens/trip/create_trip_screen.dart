@@ -18,7 +18,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _destinationController = TextEditingController();
-  
+
   final List<String> _destinations = [];
   DateTime? _startDate;
   DateTime? _endDate;
@@ -56,7 +56,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       firstDate: DateTime.now().subtract(const Duration(days: 30)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    
+
     if (picked != null) {
       setState(() {
         if (isStartDate) {
@@ -74,7 +74,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
   Future<void> _createTrip() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     if (_destinations.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add at least one destination')),
@@ -84,8 +84,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
     final request = CreateTripRequest(
       title: _titleController.text.trim(),
-      description: _descriptionController.text.trim().isEmpty 
-          ? null 
+      description: _descriptionController.text.trim().isEmpty
+          ? null
           : _descriptionController.text.trim(),
       startDate: _startDate,
       endDate: _endDate,
@@ -107,12 +107,19 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final extra = GoRouterState.of(context).extra;
+    final from = (extra is Map && extra['from'] != null)
+        ? extra['from'] as String
+        : '/home';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Start New Trip'),
         leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.pop(),
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            context.go(from);
+          },
         ),
       ),
       body: Form(
@@ -146,25 +153,26 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     const SizedBox(height: 12),
                     Text(
                       'Ready for Adventure?',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Start documenting your journey and create amazing memories',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
-                      ),
+                            color: Colors.white.withOpacity(0.9),
+                          ),
                       textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Trip Title
               CustomTextField(
                 controller: _titleController,
@@ -178,9 +186,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Description
               CustomTextField(
                 controller: _descriptionController,
@@ -190,9 +198,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 maxLines: 3,
                 maxLength: 500,
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Destinations
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,8 +208,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   Text(
                     'Destinations',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -232,15 +240,16 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                           label: Text(destination),
                           deleteIcon: const Icon(Icons.close, size: 18),
                           onDeleted: () => _removeDestination(destination),
-                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primaryContainer,
                         );
                       }).toList(),
                     ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Dates
               Row(
                 children: [
@@ -250,9 +259,10 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                       children: [
                         Text(
                           'Start Date',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
                         const SizedBox(height: 8),
                         InkWell(
@@ -265,14 +275,17 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.calendar_today, color: Colors.grey[600]),
+                                Icon(Icons.calendar_today,
+                                    color: Colors.grey[600]),
                                 const SizedBox(width: 12),
                                 Text(
                                   _startDate != null
                                       ? '${_startDate!.day}/${_startDate!.month}/${_startDate!.year}'
                                       : 'Select date',
                                   style: TextStyle(
-                                    color: _startDate != null ? null : Colors.grey[600],
+                                    color: _startDate != null
+                                        ? null
+                                        : Colors.grey[600],
                                   ),
                                 ),
                               ],
@@ -289,9 +302,10 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                       children: [
                         Text(
                           'End Date',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
                         const SizedBox(height: 8),
                         InkWell(
@@ -304,14 +318,17 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.calendar_today, color: Colors.grey[600]),
+                                Icon(Icons.calendar_today,
+                                    color: Colors.grey[600]),
                                 const SizedBox(width: 12),
                                 Text(
                                   _endDate != null
                                       ? '${_endDate!.day}/${_endDate!.month}/${_endDate!.year}'
                                       : 'Select date',
                                   style: TextStyle(
-                                    color: _endDate != null ? null : Colors.grey[600],
+                                    color: _endDate != null
+                                        ? null
+                                        : Colors.grey[600],
                                   ),
                                 ),
                               ],
@@ -323,9 +340,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Trip Type
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,8 +350,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   Text(
                     'Trip Type',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -354,9 +371,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Trip Mood
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,8 +381,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   Text(
                     'Trip Mood',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -393,9 +410,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 32),
-              
+
               // Error Message
               Consumer<TripProvider>(
                 builder: (context, tripProvider, child) {
@@ -404,10 +421,16 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .error
+                            .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .error
+                              .withOpacity(0.3),
                         ),
                       ),
                       child: Text(
@@ -422,7 +445,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   return const SizedBox.shrink();
                 },
               ),
-              
+
               // Create Trip Button
               Consumer<TripProvider>(
                 builder: (context, tripProvider, child) {

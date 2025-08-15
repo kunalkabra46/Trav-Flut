@@ -7,7 +7,8 @@ import 'package:flutter/foundation.dart';
 class ApiService {
   // static const String baseUrl = 'http://localhost:3000/api';
   // static const String baseUrl = 'http://10.61.114.100:3000/api';
-  static const String baseUrl = 'http://192.168.0.110:3000/api';
+  // static const String baseUrl = 'http://192.168.0.110:3000/api';
+  static const String baseUrl = 'http://192.168.0.111:3000/api';
 
   late final Dio _dio;
   StorageService? _storageService;
@@ -190,6 +191,7 @@ class ApiService {
     String? username,
     String? bio,
     String? avatarUrl,
+    bool? isPrivate,
   }) async {
     try {
       final response = await _dio.put('/users/$userId', data: {
@@ -197,6 +199,7 @@ class ApiService {
         if (username != null) 'username': username,
         if (bio != null) 'bio': bio,
         if (avatarUrl != null) 'avatarUrl': avatarUrl,
+        if (isPrivate != null) 'isPrivate': isPrivate,
       });
 
       return ApiResponse<User>.fromJson(
@@ -322,6 +325,25 @@ class ApiService {
       return ApiResponse<List<User>>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<bool>> getFollowStatus(String userId) async {
+    try {
+      final response = await _dio.get('/follow/$userId');
+
+      return ApiResponse<bool>(
+        success: response.data['success'],
+        data: (response.data['data'] != null)
+            ? (response.data['data']['isFollowing'] ?? false)
+            : false,
+      );
+    } on DioException catch (e) {
+      return ApiResponse<bool>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+        data: false, // Default to not following on error
       );
     }
   }

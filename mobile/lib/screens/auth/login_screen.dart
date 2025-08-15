@@ -20,17 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-@override
-  void initState() {
-    super.initState();
-    final authProvider = context.read<AuthProvider>();
-    if (authProvider.error != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        authProvider.clearError();
-      });
-    }
-  }
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -50,6 +39,9 @@ class _LoginScreenState extends State<LoginScreen> {
         'LoginScreen: login success = $success, isAuthenticated = ${authProvider.isAuthenticated}');
     if (success && mounted) {
       context.go('/home');
+    } else if (mounted) {
+      // Persist inline error; do not auto-dismiss via SnackBar
+      authProvider.markErrorAsShown();
     }
   }
 
@@ -65,6 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 60),
+
                 // Logo and Title
                 Column(
                   children: [
@@ -95,7 +88,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 48),
+
                 // Email Field
                 CustomTextField(
                   controller: _emailController,
@@ -106,9 +101,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     RequiredValidator(errorText: 'Email is required'),
                     EmailValidator(errorText: 'Please enter a valid email'),
                   ]),
-                  // onChanged: (_) => context.read<AuthProvider>().clearError(),
+                  onChanged: (_) {
+                    // Clear error when user starts typing after an error
+                    final authProvider = context.read<AuthProvider>();
+                    if (authProvider.error != null) {
+                      authProvider.clearError();
+                    }
+                  },
                 ),
+
                 const SizedBox(height: 16),
+
                 // Password Field
                 CustomTextField(
                   controller: _passwordController,
@@ -129,42 +132,77 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator:
                       RequiredValidator(errorText: 'Password is required'),
-                  // onChanged: (_) => context.read<AuthProvider>().clearError(),
+                  onChanged: (_) {
+                    // Clear error when user starts typing after an error
+                    final authProvider = context.read<AuthProvider>();
+                    if (authProvider.error != null) {
+                      authProvider.clearError();
+                    }
+                  },
                 ),
+
                 const SizedBox(height: 24),
-                // Error Message
+
+                // Persistent Error Message
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
-                    print('Building error widget: ${authProvider.error}');
-                    if (authProvider.error != null) {
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .error
-                              .withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
+                    return AnimatedBuilder(
+                      animation: authProvider.uiNotifier,
+                      builder: (context, _) {
+                        if (authProvider.error == null) {
+                          return const SizedBox.shrink();
+                        }
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
                             color: Theme.of(context)
                                 .colorScheme
                                 .error
-                                .withOpacity(0.3),
+                                .withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .error
+                                  .withOpacity(0.3),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          authProvider.error!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                            fontSize: 14,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: Theme.of(context).colorScheme.error,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  authProvider.error!,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.close,
+                                  color: Theme.of(context).colorScheme.error,
+                                  size: 18,
+                                ),
+                                onPressed: () {
+                                  authProvider.clearError();
+                                },
+                              ),
+                            ],
                           ),
-                        ),
-                      );
-                    }
-                    return const SizedBox.shrink();
+                        );
+                      },
+                    );
                   },
                 ),
+
                 // Login Button
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
@@ -175,7 +213,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     );
                   },
                 ),
+
                 const SizedBox(height: 24),
+
                 // Sign Up Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -185,11 +225,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     TextButton(
-                      onPressed: () => context.go('/signup'),
+                      onPressed: () {
+                        final authProvider = context.read<AuthProvider>();
+                        if (authProvider.error != null) {
+                          authProvider.clearError();
+                        }
+                        context.go('/signup');
+                      },
                       child: const Text('Sign Up'),
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 40),
               ],
             ),
