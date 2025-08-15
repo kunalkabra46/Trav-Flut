@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:tripthread/models/api_response.dart';
 import 'package:tripthread/models/user.dart';
+import 'package:tripthread/models/trip.dart';
 import 'package:tripthread/services/storage_service.dart';
 import 'package:flutter/foundation.dart';
 
@@ -382,6 +383,143 @@ class ApiService {
     }
   }
 
+  // Trip endpoints
+  Future<ApiResponse<Trip>> createTrip(CreateTripRequest request) async {
+    try {
+      final response = await _dio.post('/trips', data: request.toJson());
+
+      return ApiResponse<Trip>.fromJson(
+        response.data,
+        (json) => Trip.fromJson(json as Map<String, dynamic>),
+      );
+    } on DioException catch (e) {
+      return ApiResponse<Trip>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<List<Trip>>> getTrips({String? status}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (status != null) {
+        queryParams['status'] = status;
+      }
+
+      final response = await _dio.get('/trips', queryParameters: queryParams);
+
+      final trips = (response.data['data'] as List)
+          .map((json) => Trip.fromJson(json))
+          .toList();
+
+      return ApiResponse<List<Trip>>(
+        success: response.data['success'],
+        data: trips,
+      );
+    } on DioException catch (e) {
+      return ApiResponse<List<Trip>>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<Trip>> getTrip(String tripId) async {
+    try {
+      final response = await _dio.get('/trips/$tripId');
+
+      return ApiResponse<Trip>.fromJson(
+        response.data,
+        (json) => Trip.fromJson(json as Map<String, dynamic>),
+      );
+    } on DioException catch (e) {
+      return ApiResponse<Trip>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<Trip?>> getCurrentTrip() async {
+    try {
+      final response = await _dio.get('/trips/status');
+
+      if (response.data['data'] == null) {
+        return ApiResponse<Trip?>(
+          success: true,
+          data: null,
+          message: response.data['message'],
+        );
+      }
+
+      return ApiResponse<Trip?>.fromJson(
+        response.data,
+        (json) => json != null ? Trip.fromJson(json as Map<String, dynamic>) : null,
+      );
+    } on DioException catch (e) {
+      return ApiResponse<Trip?>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<Trip>> endTrip(String tripId) async {
+    try {
+      final response = await _dio.post('/trips/$tripId/end');
+
+      return ApiResponse<Trip>.fromJson(
+        response.data,
+        (json) => Trip.fromJson(json as Map<String, dynamic>),
+      );
+    } on DioException catch (e) {
+      return ApiResponse<Trip>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  // Thread entries
+  Future<ApiResponse<TripThreadEntry>> createThreadEntry(
+    String tripId,
+    CreateThreadEntryRequest request,
+  ) async {
+    try {
+      final response = await _dio.post('/trips/$tripId/entries', data: request.toJson());
+
+      return ApiResponse<TripThreadEntry>.fromJson(
+        response.data,
+        (json) => TripThreadEntry.fromJson(json as Map<String, dynamic>),
+      );
+    } on DioException catch (e) {
+      return ApiResponse<TripThreadEntry>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<List<TripThreadEntry>>> getThreadEntries(String tripId) async {
+    try {
+      final response = await _dio.get('/trips/$tripId/entries');
+
+      final entries = (response.data['data'] as List)
+          .map((json) => TripThreadEntry.fromJson(json))
+          .toList();
+
+      return ApiResponse<List<TripThreadEntry>>(
+        success: response.data['success'],
+        data: entries,
+      );
+    } on DioException catch (e) {
+      return ApiResponse<List<TripThreadEntry>>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
   // Add this method for manual refresh
   Future<ApiResponse<Map<String, dynamic>>> refreshAccessToken(
       String refreshToken) async {
