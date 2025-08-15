@@ -60,11 +60,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _handleFollowToggle() async {
     final userProvider = context.read<UserProvider>();
+    final authProvider = context.read<AuthProvider>();
     final isCurrentlyFollowing = userProvider.isFollowing(widget.userId);
 
+    final currentUser = authProvider.currentUser;
     final success = isCurrentlyFollowing
-        ? await userProvider.unfollowUser(widget.userId)
-        : await userProvider.followUser(widget.userId);
+        ? await userProvider.unfollowUser(widget.userId,
+            currentUserId: currentUser?.id)
+        : await userProvider.followUser(widget.userId,
+            currentUserId: currentUser?.id);
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -77,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
   }
-    
+
   Future<void> _refreshProfile() async {
     await _loadProfileData();
   }
@@ -105,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         }
 
-        if (profileUser == null  && !userProvider.isLoading) {
+        if (profileUser == null && !userProvider.isLoading) {
           return Scaffold(
             appBar: AppBar(
               title: const Text('Profile'),
@@ -146,7 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         return Scaffold(
-            appBar: AppBar(
+          appBar: AppBar(
             title: Text(profileUser?.name ?? 'Profile'),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
@@ -159,9 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: () {
                     // Pass current route as 'from' parameter
                     context.push('/edit-profile',
-                        extra: {
-                          'from': '/profile/${widget.userId}'
-                    });
+                        extra: {'from': '/profile/${widget.userId}'});
                   },
                 ),
               if (isOwnProfile)
@@ -176,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
             ],
           ),
-                    body: RefreshIndicator(
+          body: RefreshIndicator(
             onRefresh: _refreshProfile,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -190,10 +192,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .error
+                            .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .error
+                              .withOpacity(0.3),
                         ),
                       ),
                       child: Row(
@@ -227,10 +235,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Profile Header
                   if (profileUser != null)
                     _buildProfileHeader(
-                      context, 
-                      profileUser, 
-                      userStats, 
-                      isOwnProfile, 
+                      context,
+                      profileUser,
+                      userStats,
+                      isOwnProfile,
                       isFollowing,
                       userProvider.isLoading,
                     ),

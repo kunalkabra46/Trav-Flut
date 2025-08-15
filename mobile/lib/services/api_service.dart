@@ -7,8 +7,8 @@ import 'package:flutter/foundation.dart';
 class ApiService {
   // static const String baseUrl = 'http://localhost:3000/api';
   // static const String baseUrl = 'http://10.61.114.100:3000/api';
-  // static const String baseUrl = 'http://192.168.0.110:3000/api';
-  static const String baseUrl = 'http://192.168.0.111:3000/api';
+  static const String baseUrl = 'http://192.168.0.110:3000/api';
+  // static const String baseUrl = 'http://192.168.0.111:3000/api';
 
   late final Dio _dio;
   StorageService? _storageService;
@@ -344,6 +344,40 @@ class ApiService {
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
         data: false, // Default to not following on error
+      );
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> searchUsers({
+    String? search,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+
+      if (search != null && search.isNotEmpty) {
+        queryParams['search'] = search;
+      }
+
+      final response = await _dio.get('/users', queryParameters: queryParams);
+
+      return ApiResponse<Map<String, dynamic>>(
+        success: response.data['success'],
+        data: response.data['data'],
+      );
+    } on DioException catch (e) {
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        error: 'An unexpected error occurred',
       );
     }
   }

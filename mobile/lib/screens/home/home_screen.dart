@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:tripthread/providers/auth_provider.dart';
 import 'package:tripthread/providers/trip_provider.dart';
 import 'package:tripthread/models/trip.dart';
+import 'package:tripthread/providers/user_provider.dart';
+import 'package:tripthread/screens/discover/discover_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -520,48 +522,6 @@ class TripsTab extends StatelessWidget {
   }
 }
 
-class DiscoverTab extends StatelessWidget {
-  const DiscoverTab({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Discover'),
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.explore_outlined,
-              size: 64,
-              color: Colors.grey,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Discover Coming Soon',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Find inspiration for your next adventure',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class ProfileTab extends StatelessWidget {
   const ProfileTab({Key? key}) : super(key: key);
 
@@ -573,6 +533,17 @@ class ProfileTab extends StatelessWidget {
 
         if (user == null) {
           return const Center(child: CircularProgressIndicator());
+        }
+
+        // Ensure stats are loaded for the current user (once)
+        final userProvider = context.read<UserProvider>();
+        final stats = userProvider.getUserStats(user.id);
+        if (stats == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) {
+              context.read<UserProvider>().fetchUserStats(user.id);
+            }
+          });
         }
 
         return Scaffold(
@@ -665,16 +636,21 @@ class ProfileTab extends StatelessWidget {
                       const SizedBox(height: 20),
 
                       // Stats Row
-                      Consumer<TripProvider>(
-                        builder: (context, tripProvider, child) {
+                      Consumer2<TripProvider, UserProvider>(
+                        builder: (context, tripProvider, userProvider, child) {
                           final tripCount = tripProvider.trips.length;
+                          final userStats = userProvider.getUserStats(user.id);
+                          final followerCount = userStats?.followerCount ?? 0;
+                          final followingCount = userStats?.followingCount ?? 0;
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               _buildStatColumn(
                                   context, tripCount.toString(), 'Trips'),
-                              _buildStatColumn(context, '0', 'Followers'),
-                              _buildStatColumn(context, '0', 'Following'),
+                              _buildStatColumn(
+                                  context, '$followerCount', 'Followers'),
+                              _buildStatColumn(
+                                  context, '$followingCount', 'Following'),
                             ],
                           );
                         },
@@ -687,7 +663,8 @@ class ProfileTab extends StatelessWidget {
                         width: double.infinity,
                         child: OutlinedButton(
                           onPressed: () {
-                            context.go('/edit-profile');
+                            context.push('/edit-profile',
+                                extra: {'from': '/home'});
                           },
                           child: const Text('Edit Profile'),
                         ),
