@@ -61,7 +61,7 @@ class TripProvider extends ChangeNotifier {
   // Load all user trips
   Future<void> loadTrips({TripStatus? status}) async {
     try {
-      final response = await _tripService.getTrips(status: status);
+      final response = await _tripService.getTrips(status: status?.name.toUpperCase());
       
       if (response.success && response.data != null) {
         _trips = response.data!;
