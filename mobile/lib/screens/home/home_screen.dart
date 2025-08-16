@@ -8,7 +8,9 @@ import 'package:tripthread/providers/user_provider.dart';
 import 'package:tripthread/screens/discover/discover_tab.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  final int initialTab;
+
+  const HomeScreen({Key? key, this.initialTab = 0}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -20,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialTab;
     // Initialize trip provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TripProvider>().initialize();
@@ -235,7 +238,8 @@ class TripsTab extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => context.go('/trip/${trip.id}/thread'),
+                  onPressed: () => context.go('/trip/${trip.id}/thread',
+                      extra: {'from': '/trip/${trip.id}'}),
                   icon: const Icon(Icons.add),
                   label: const Text('Add Entry'),
                   style: ElevatedButton.styleFrom(
@@ -246,7 +250,8 @@ class TripsTab extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               OutlinedButton(
-                onPressed: () => context.go('/trip/${trip.id}'),
+                onPressed: () =>
+                    context.go('/trip/${trip.id}', extra: {'from': '/trips'}),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Colors.white),
                   foregroundColor: Colors.white,
@@ -320,7 +325,7 @@ class TripsTab extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: InkWell(
-        onTap: () => context.go('/trip/${trip.id}'),
+        onTap: () => context.go('/trip/${trip.id}', extra: {'from': '/trips'}),
         borderRadius: BorderRadius.circular(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

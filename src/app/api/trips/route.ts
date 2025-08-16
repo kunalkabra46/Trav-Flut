@@ -21,10 +21,75 @@ export async function POST(request: NextRequest) {
           const endTimer =
             PerformanceMonitor.getInstance().startTimer("create_trip");
 
+          let body: any;
           try {
-            const body = await authenticatedReq.json();
+            body = await authenticatedReq.json();
+
+            // Add comprehensive debugging
+            console.log("[DEBUG] Create trip request received");
+            console.log("[DEBUG] Request body:", JSON.stringify(body, null, 2));
+            console.log("[DEBUG] startDate type:", typeof body.startDate);
+            console.log("[DEBUG] startDate value:", body.startDate);
+            console.log("[DEBUG] endDate type:", typeof body.endDate);
+            console.log("[DEBUG] endDate value:", body.endDate);
+
+            if (body.startDate) {
+              const parsedStartDate = new Date(body.startDate);
+              console.log("[DEBUG] startDate parsed:", parsedStartDate);
+              console.log(
+                "[DEBUG] startDate isValid:",
+                !isNaN(parsedStartDate.getTime())
+              );
+              console.log(
+                "[DEBUG] startDate toISOString:",
+                parsedStartDate.toISOString()
+              );
+              console.log(
+                "[DEBUG] startDate timezone offset:",
+                parsedStartDate.getTimezoneOffset()
+              );
+              console.log("[DEBUG] Current server time:", new Date());
+              console.log(
+                "[DEBUG] Server timezone offset:",
+                new Date().getTimezoneOffset()
+              );
+            }
+
+            if (body.endDate) {
+              const parsedEndDate = new Date(body.endDate);
+              console.log("[DEBUG] endDate parsed:", parsedEndDate);
+              console.log(
+                "[DEBUG] endDate isValid:",
+                !isNaN(parsedEndDate.getTime())
+              );
+              console.log(
+                "[DEBUG] endDate toISOString:",
+                parsedEndDate.toISOString()
+              );
+              console.log(
+                "[DEBUG] endDate timezone offset:",
+                parsedEndDate.getTimezoneOffset()
+              );
+            }
+
             const validatedData = createTripSchema.parse(body);
+            console.log(
+              "[DEBUG] Validation passed, validated data:",
+              JSON.stringify(validatedData, null, 2)
+            );
+            console.log(
+              "[DEBUG] coverMediaUrl after validation:",
+              validatedData.coverMediaUrl
+            );
+            console.log(
+              "[DEBUG] description after validation:",
+              validatedData.description
+            );
+            console.log("[DEBUG] mood after validation:", validatedData.mood);
+            console.log("[DEBUG] type after validation:", validatedData.type);
+
             const userId = authenticatedReq.user!.userId;
+            console.log("[DEBUG] User ID:", userId);
 
             // Check if user has an ongoing trip
             const ongoingTrip = await prisma.trip.findFirst({
@@ -42,18 +107,35 @@ export async function POST(request: NextRequest) {
 
             // Create trip with transaction for data consistency
             const trip = await prisma.$transaction(async (tx) => {
+              const tripData = {
+                ...validatedData,
+                userId,
+                startDate: validatedData.startDate
+                  ? new Date(validatedData.startDate)
+                  : null,
+                endDate: validatedData.endDate
+                  ? new Date(validatedData.endDate)
+                  : null,
+                status: "ONGOING" as const,
+              };
+
+              console.log(
+                "[DEBUG] Trip data for database:",
+                JSON.stringify(tripData, null, 2)
+              );
+              console.log(
+                "[DEBUG] coverMediaUrl in tripData:",
+                tripData.coverMediaUrl
+              );
+              console.log(
+                "[DEBUG] description in tripData:",
+                tripData.description
+              );
+              console.log("[DEBUG] mood in tripData:", tripData.mood);
+              console.log("[DEBUG] type in tripData:", tripData.type);
+
               const newTrip = await tx.trip.create({
-                data: {
-                  ...validatedData,
-                  userId,
-                  startDate: validatedData.startDate
-                    ? new Date(validatedData.startDate)
-                    : null,
-                  endDate: validatedData.endDate
-                    ? new Date(validatedData.endDate)
-                    : null,
-                  status: "ONGOING",
-                },
+                data: tripData,
                 include: {
                   user: {
                     select: {
@@ -79,7 +161,9 @@ export async function POST(request: NextRequest) {
               });
 
               // Log trip creation for analytics
-              console.log(`Trip created: ${newTrip.id} by user ${userId}`);
+              console.log(
+                `[DEBUG] Trip created successfully: ${newTrip.id} by user ${userId}`
+              );
 
               return newTrip;
             });
@@ -109,6 +193,21 @@ export async function POST(request: NextRequest) {
                 : undefined,
             };
 
+            console.log(
+              "[DEBUG] Final trip response:",
+              JSON.stringify(tripResponse, null, 2)
+            );
+            console.log(
+              "[DEBUG] coverMediaUrl in response:",
+              tripResponse.coverMediaUrl
+            );
+            console.log(
+              "[DEBUG] description in response:",
+              tripResponse.description
+            );
+            console.log("[DEBUG] mood in response:", tripResponse.mood);
+            console.log("[DEBUG] type in response:", tripResponse.type);
+
             return NextResponse.json<ApiResponse<TripResponse>>(
               {
                 success: true,
@@ -123,10 +222,46 @@ export async function POST(request: NextRequest) {
               authenticatedReq.user?.userId
             );
 
+            console.log("[DEBUG] Error in create trip:", error);
+            console.log("[DEBUG] Error name:", error.name);
+            console.log("[DEBUG] Error message:", error.message);
+            console.log("[DEBUG] Error stack:", error.stack);
+
             if (error.name === "ZodError") {
-              throw new ValidationError(
-                error.errors[0]?.message || "Validation error"
+              const validationErrors = error.errors;
+              console.log(
+                "[DEBUG] Validation errors:",
+                JSON.stringify(validationErrors, null, 2)
               );
+
+              // Find the first validation error
+              const firstError = validationErrors[0];
+              if (firstError) {
+                console.log("[DEBUG] First validation error:", firstError);
+                console.log("[DEBUG] Error path:", firstError.path);
+                console.log("[DEBUG] Error message:", firstError.message);
+
+                // Provide more specific error messages for date issues
+                if (firstError.path.includes("startDate")) {
+                  throw new ValidationError(
+                    `Start date validation failed: ${
+                      firstError.message
+                    }. Received: ${body?.startDate || "undefined"}`
+                  );
+                } else if (firstError.path.includes("endDate")) {
+                  throw new ValidationError(
+                    `End date validation failed: ${
+                      firstError.message
+                    }. Received: ${body?.endDate || "undefined"}`
+                  );
+                } else {
+                  throw new ValidationError(
+                    firstError.message || "Validation error"
+                  );
+                }
+              } else {
+                throw new ValidationError("Validation error");
+              }
             }
 
             throw error;
