@@ -176,6 +176,9 @@ TripFinalPost _$TripFinalPostFromJson(Map<String, dynamic> json) =>
       caption: json['caption'] as String?,
       isPublished: json['isPublished'] as bool,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      trip: json['trip'] == null
+          ? null
+          : Trip.fromJson(json['trip'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$TripFinalPostToJson(TripFinalPost instance) =>
@@ -187,6 +190,7 @@ Map<String, dynamic> _$TripFinalPostToJson(TripFinalPost instance) =>
       'caption': instance.caption,
       'isPublished': instance.isPublished,
       'createdAt': instance.createdAt.toIso8601String(),
+      'trip': instance.trip,
     };
 
 Media _$MediaFromJson(Map<String, dynamic> json) => Media(

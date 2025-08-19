@@ -455,7 +455,8 @@ class ApiService {
 
       return ApiResponse<Trip?>.fromJson(
         response.data,
-        (json) => json != null ? Trip.fromJson(json as Map<String, dynamic>) : null,
+        (json) =>
+            json != null ? Trip.fromJson(json as Map<String, dynamic>) : null,
       );
     } on DioException catch (e) {
       return ApiResponse<Trip?>(
@@ -487,7 +488,8 @@ class ApiService {
     CreateThreadEntryRequest request,
   ) async {
     try {
-      final response = await _dio.post('/trips/$tripId/entries', data: request.toJson());
+      final response =
+          await _dio.post('/trips/$tripId/entries', data: request.toJson());
 
       return ApiResponse<TripThreadEntry>.fromJson(
         response.data,
@@ -501,7 +503,8 @@ class ApiService {
     }
   }
 
-  Future<ApiResponse<List<TripThreadEntry>>> getThreadEntries(String tripId) async {
+  Future<ApiResponse<List<TripThreadEntry>>> getThreadEntries(
+      String tripId) async {
     try {
       final response = await _dio.get('/trips/$tripId/entries');
 
@@ -520,6 +523,60 @@ class ApiService {
       );
     }
   }
+
+  // Feed endpoints
+  Future<ApiResponse<Map<String, dynamic>>> getHomeFeed({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final response = await _dio.get('/feed/home', queryParameters: {
+        'page': page.toString(),
+        'limit': limit.toString(),
+      });
+
+      return ApiResponse<Map<String, dynamic>>(
+        success: response.data['success'],
+        data: response.data['data'],
+      );
+    } on DioException catch (e) {
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> getDiscoverTrips({
+    int page = 1,
+    int limit = 20,
+    String? status,
+    String? mood,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+
+      if (status != null) queryParams['status'] = status;
+      if (mood != null) queryParams['mood'] = mood;
+
+      final response =
+          await _dio.get('/discover/trips', queryParameters: queryParams);
+
+      return ApiResponse<Map<String, dynamic>>(
+        success: response.data['success'],
+        data: response.data['data'],
+      );
+    } on DioException catch (e) {
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
   // Add this method for manual refresh
   Future<ApiResponse<Map<String, dynamic>>> refreshAccessToken(
       String refreshToken) async {
