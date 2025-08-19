@@ -61,7 +61,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _handleFollowToggle() async {
     final userProvider = context.read<UserProvider>();
     final authProvider = context.read<AuthProvider>();
-    final isCurrentlyFollowing = userProvider.isFollowing(widget.userId);
+    final detailedStatus = userProvider.getDetailedFollowStatus(widget.userId);
+    final isCurrentlyFollowing = detailedStatus?.isFollowing ?? false;
 
     final currentUser = authProvider.currentUser;
     final success = isCurrentlyFollowing
@@ -71,6 +72,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             currentUserId: currentUser?.id);
 
     if (success && mounted) {
+      // Refresh detailed follow status
+      await userProvider.fetchDetailedFollowStatus(widget.userId);
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(isCurrentlyFollowing
@@ -92,9 +96,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, authProvider, userProvider, child) {
         final currentUser = authProvider.currentUser;
         final profileUser = userProvider.getUser(widget.userId);
-        final userStats = userProvider.getUserStats(widget.userId);
+          await userProvider.fetchDetailedFollowStatus(widget.userId);
+        }
+
+        // Load pending follow requests if it's own profile
+        if (currentUser != null && currentUser.id == widget.userId) {
+          await userProvider.loadPendingFollowRequests();
         final isOwnProfile = currentUser?.id == widget.userId;
-        final isFollowing = userProvider.isFollowing(widget.userId);
+        final detailedFollowStatus = userProvider.getDetailedFollowStatus(widget.userId);
+        final isFollowing = detailedFollowStatus?.isFollowing ?? false;
+        final isRequestPending = detailedFollowStatus?.isRequestPending ?? false;
+        final isRequestPending = detailedFollowStatus?.isRequestPending ?? false;
 
         if (_isInitialLoad && profileUser == null) {
           return Scaffold(
@@ -171,6 +183,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
               },
             ),
             actions: [
+              if (isOwnProfile)
+                IconButton(
+                  icon: Stack(
+                    children: [
+                      const Icon(Icons.person_add_outlined),
+                      if (userProvider.pendingFollowRequests.isNotEmpty)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 12,
+                              minHeight: 12,
+                            ),
+                            child: Text(
+                              '${userProvider.pendingFollowRequests.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  onPressed: () {
+                    context.push('/follow-requests');
+                  },
+                ),
               if (isOwnProfile)
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
@@ -381,13 +428,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: const Text('Edit Profile'),
               ),
             )
+          else if (profileUser.isPrivate && !isFollowing && !isRequestPending)
+            Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.lock_outlined,
+                        size: 32,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'This account is private',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Follow to see their trips and posts',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : _handleFollowToggle,
+                    child: const Text('Send Follow Request'),
+                  ),
+                ),
+              ],
+            )
           else
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: isLoading ? null : _handleFollowToggle,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isFollowing
+                  backgroundColor: isFollowing || isRequestPending
                       ? Theme.of(context).colorScheme.outline
                       : Theme.of(context).colorScheme.primary,
                 ),
@@ -397,7 +489,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(isFollowing ? 'Unfollow' : 'Follow'),
+                    : Text(
+                        isFollowing 
+                          ? 'Unfollow' 
+                          : isRequestPending 
+                            ? 'Request Sent' 
+                            : 'Follow'
+                      ),
               ),
             ),
         ],

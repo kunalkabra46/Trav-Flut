@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { AuthService } from "@/lib/auth";
-import { ApiResponse, FollowResponse } from "@/types/api";
+import { ApiResponse, FollowResponse, FollowStatusResponse } from "@/types/api";
 
 export async function GET(
   request: NextRequest,
@@ -37,7 +37,7 @@ export async function GET(
 
     const followerId = payload.userId;
 
-    // Check if following
+    // Check if following (accepted follow relationship)
     const existingFollow = await prisma.follow.findUnique({
       where: {
         followerId_followeeId: {
@@ -47,11 +47,24 @@ export async function GET(
       },
     });
 
-    const isFollowing = !!existingFollow;
+    // Check if there's a pending follow request
+    const pendingRequest = await prisma.followRequest.findFirst({
+      where: {
+        followerId,
+        followingId: followeeId,
+        status: "PENDING",
+      },
+    });
 
-    return NextResponse.json<ApiResponse<{ isFollowing: boolean }>>({
+    const followStatus: FollowStatusResponse = {
+      isFollowing: !!existingFollow,
+      isRequestPending: !!pendingRequest,
+      requestId: pendingRequest?.id,
+    };
+
+    return NextResponse.json<ApiResponse<FollowStatusResponse>>({
       success: true,
-      data: { isFollowing },
+      data: followStatus,
     });
   } catch (error: any) {
     console.error("Check follow status error:", error);
@@ -115,6 +128,7 @@ export async function POST(
     // Check if followee exists
     const followee = await prisma.user.findUnique({
       where: { id: followeeId },
+      select: { id: true, isPrivate: true },
     });
 
     if (!followee) {
@@ -127,7 +141,7 @@ export async function POST(
       );
     }
 
-    // Check if already following
+    // Check if already following or has pending request
     const existingFollow = await prisma.follow.findUnique({
       where: {
         followerId_followeeId: {
@@ -148,7 +162,44 @@ export async function POST(
       );
     }
 
-    // Create follow relationship
+    const existingRequest = await prisma.followRequest.findFirst({
+      where: {
+        followerId,
+        followingId: followeeId,
+        status: "PENDING",
+      },
+    });
+
+    if (existingRequest) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: true,
+          message: "Follow request already sent",
+        },
+        { status: 200 }
+      );
+    }
+
+    // If followee is private, create a follow request
+    if (followee.isPrivate) {
+      const followRequest = await prisma.followRequest.create({
+        data: {
+          followerId,
+          followingId: followeeId,
+          status: "PENDING",
+        },
+      });
+
+      return NextResponse.json<ApiResponse>(
+        {
+          success: true,
+          message: "Follow request sent successfully",
+        },
+        { status: 201 }
+      );
+    }
+
+    // If followee is public, create direct follow relationship
     const follow = await prisma.follow.create({
       data: {
         followerId,

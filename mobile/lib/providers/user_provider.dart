@@ -10,20 +10,29 @@ class UserProvider extends ChangeNotifier {
   final Map<String, User> _userCache = {};
   final Map<String, UserStats> _statsCache = {};
   final Map<String, bool> _followStatusCache = {};
+  final Map<String, FollowStatusResponse> _detailedFollowStatusCache = {};
+  List<FollowRequestDto> _pendingFollowRequests = [];
   final List<Map<String, dynamic>> _discoverUsers = [];
   bool _isLoading = false;
   bool _isDiscoverLoading = false;
+  bool _isFollowRequestsLoading = false;
   String? _error;
   String? _discoverError;
+  String? _followRequestsError;
   int _discoverPage = 1;
   bool _hasMoreUsers = true;
 
   // Getters
   bool get isLoading => _isLoading;
   bool get isDiscoverLoading => _isDiscoverLoading;
+  bool get isFollowRequestsLoading => _isFollowRequestsLoading;
   String? get error => _error;
   String? get discoverError => _discoverError;
+  String? get followRequestsError => _followRequestsError;
   bool isFollowing(String userId) => _followStatusCache[userId] ?? false;
+  FollowStatusResponse? getDetailedFollowStatus(String userId) =>
+      _detailedFollowStatusCache[userId];
+  List<FollowRequestDto> get pendingFollowRequests => _pendingFollowRequests;
   List<Map<String, dynamic>> get discoverUsers => _discoverUsers;
   bool get hasMoreUsers => _hasMoreUsers;
 
@@ -159,6 +168,132 @@ class UserProvider extends ChangeNotifier {
       _followStatusCache[userId] = false;
       notifyListeners();
       debugPrint('Fetch follow status error: $e');
+      return false;
+    }
+  }
+
+  Future<FollowStatusResponse?> fetchDetailedFollowStatus(String userId) async {
+    try {
+      final response = await _apiService.getDetailedFollowStatus(userId);
+
+      if (response.success && response.data != null) {
+        _detailedFollowStatusCache[userId] = response.data!;
+        _followStatusCache[userId] = response.data!.isFollowing;
+        notifyListeners();
+        return response.data;
+      } else {
+        _detailedFollowStatusCache[userId] = const FollowStatusResponse(
+          isFollowing: false,
+          isRequestPending: false,
+        );
+        _followStatusCache[userId] = false;
+        notifyListeners();
+        return null;
+      }
+    } catch (e) {
+      _detailedFollowStatusCache[userId] = const FollowStatusResponse(
+        isFollowing: false,
+        isRequestPending: false,
+      );
+      _followStatusCache[userId] = false;
+      notifyListeners();
+      debugPrint('Fetch detailed follow status error: $e');
+      return null;
+    }
+  }
+
+  Future<void> loadPendingFollowRequests() async {
+    try {
+      _isFollowRequestsLoading = true;
+      _followRequestsError = null;
+      notifyListeners();
+
+      final response = await _apiService.getPendingFollowRequests();
+
+      if (response.success && response.data != null) {
+        _pendingFollowRequests = response.data!;
+        _followRequestsError = null;
+      } else {
+        _followRequestsError =
+            response.error ?? 'Failed to load follow requests';
+      }
+    } catch (e) {
+      _followRequestsError = 'An unexpected error occurred';
+      debugPrint('Load pending follow requests error: $e');
+    } finally {
+      _isFollowRequestsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> acceptFollowRequest(String requestId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final response = await _apiService.acceptFollowRequest(requestId);
+
+      if (response.success) {
+        // Remove the request from pending list
+        _pendingFollowRequests.removeWhere((req) => req.id == requestId);
+
+        // Update follow status cache for the requester
+        final request = _pendingFollowRequests.firstWhere(
+          (req) => req.id == requestId,
+          orElse: () => _pendingFollowRequests.first,
+        );
+        if (_pendingFollowRequests.isNotEmpty) {
+          _followStatusCache[request.followerId] = true;
+          _detailedFollowStatusCache[request.followerId] =
+              const FollowStatusResponse(
+            isFollowing: true,
+            isRequestPending: false,
+          );
+        }
+
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = response.error ?? 'Failed to accept follow request';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Accept follow request error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> rejectFollowRequest(String requestId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final response = await _apiService.rejectFollowRequest(requestId);
+
+      if (response.success) {
+        // Remove the request from pending list
+        _pendingFollowRequests.removeWhere((req) => req.id == requestId);
+
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = response.error ?? 'Failed to reject follow request';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Reject follow request error: $e');
       return false;
     }
   }
@@ -301,6 +436,12 @@ class UserProvider extends ChangeNotifier {
 
   void clearFollowStatusCache() {
     _followStatusCache.clear();
+    _detailedFollowStatusCache.clear();
+    notifyListeners();
+  }
+
+  void clearFollowRequestsError() {
+    _followRequestsError = null;
     notifyListeners();
   }
 
@@ -312,6 +453,8 @@ class UserProvider extends ChangeNotifier {
   void clearCache() {
     _userCache.clear();
     _statsCache.clear();
+    _detailedFollowStatusCache.clear();
+    _pendingFollowRequests.clear();
     notifyListeners();
   }
 

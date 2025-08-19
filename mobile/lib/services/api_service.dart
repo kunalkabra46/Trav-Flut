@@ -334,17 +334,86 @@ class ApiService {
     try {
       final response = await _dio.get('/follow/$userId');
 
+      final followStatus = FollowStatusResponse.fromJson(response.data['data']);
+
       return ApiResponse<bool>(
         success: response.data['success'],
-        data: (response.data['data'] != null)
-            ? (response.data['data']['isFollowing'] ?? false)
-            : false,
+        data: followStatus.isFollowing,
       );
     } on DioException catch (e) {
       return ApiResponse<bool>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
         data: false, // Default to not following on error
+      );
+    }
+  }
+
+  Future<ApiResponse<FollowStatusResponse>> getDetailedFollowStatus(
+      String userId) async {
+    try {
+      final response = await _dio.get('/follow/$userId');
+
+      return ApiResponse<FollowStatusResponse>.fromJson(
+        response.data,
+        (json) => FollowStatusResponse.fromJson(json as Map<String, dynamic>),
+      );
+    } on DioException catch (e) {
+      return ApiResponse<FollowStatusResponse>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<List<FollowRequestDto>>> getPendingFollowRequests() async {
+    try {
+      final response = await _dio.get('/follow/requests');
+
+      final requests = (response.data['data'] as List)
+          .map((json) => FollowRequestDto.fromJson(json))
+          .toList();
+
+      return ApiResponse<List<FollowRequestDto>>(
+        success: response.data['success'],
+        data: requests,
+      );
+    } on DioException catch (e) {
+      return ApiResponse<List<FollowRequestDto>>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<void>> acceptFollowRequest(String requestId) async {
+    try {
+      final response = await _dio.post('/follow/requests/$requestId/accept');
+
+      return ApiResponse<void>(
+        success: response.data['success'],
+        message: response.data['message'],
+      );
+    } on DioException catch (e) {
+      return ApiResponse<void>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<void>> rejectFollowRequest(String requestId) async {
+    try {
+      final response = await _dio.post('/follow/requests/$requestId/reject');
+
+      return ApiResponse<void>(
+        success: response.data['success'],
+        message: response.data['message'],
+      );
+    } on DioException catch (e) {
+      return ApiResponse<void>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
       );
     }
   }
@@ -455,7 +524,8 @@ class ApiService {
 
       return ApiResponse<Trip?>.fromJson(
         response.data,
-        (json) => json != null ? Trip.fromJson(json as Map<String, dynamic>) : null,
+        (json) =>
+            json != null ? Trip.fromJson(json as Map<String, dynamic>) : null,
       );
     } on DioException catch (e) {
       return ApiResponse<Trip?>(
@@ -487,7 +557,8 @@ class ApiService {
     CreateThreadEntryRequest request,
   ) async {
     try {
-      final response = await _dio.post('/trips/$tripId/entries', data: request.toJson());
+      final response =
+          await _dio.post('/trips/$tripId/entries', data: request.toJson());
 
       return ApiResponse<TripThreadEntry>.fromJson(
         response.data,
@@ -501,7 +572,8 @@ class ApiService {
     }
   }
 
-  Future<ApiResponse<List<TripThreadEntry>>> getThreadEntries(String tripId) async {
+  Future<ApiResponse<List<TripThreadEntry>>> getThreadEntries(
+      String tripId) async {
     try {
       final response = await _dio.get('/trips/$tripId/entries');
 
@@ -520,6 +592,60 @@ class ApiService {
       );
     }
   }
+
+  // Feed endpoints
+  Future<ApiResponse<Map<String, dynamic>>> getHomeFeed({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final response = await _dio.get('/feed/home', queryParameters: {
+        'page': page.toString(),
+        'limit': limit.toString(),
+      });
+
+      return ApiResponse<Map<String, dynamic>>(
+        success: response.data['success'],
+        data: response.data['data'],
+      );
+    } on DioException catch (e) {
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> getDiscoverTrips({
+    int page = 1,
+    int limit = 20,
+    String? status,
+    String? mood,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+
+      if (status != null) queryParams['status'] = status;
+      if (mood != null) queryParams['mood'] = mood;
+
+      final response =
+          await _dio.get('/discover/trips', queryParameters: queryParams);
+
+      return ApiResponse<Map<String, dynamic>>(
+        success: response.data['success'],
+        data: response.data['data'],
+      );
+    } on DioException catch (e) {
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    }
+  }
+
   // Add this method for manual refresh
   Future<ApiResponse<Map<String, dynamic>>> refreshAccessToken(
       String refreshToken) async {

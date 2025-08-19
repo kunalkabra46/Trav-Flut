@@ -94,7 +94,7 @@ export async function POST(
         contentText: validatedData.contentText,
         mediaUrl: validatedData.mediaUrl,
         locationName: validatedData.locationName,
-        gpsCoordinates: validatedData.gpsCoordinates,
+        gpsCoordinates: validatedData.gpsCoordinates ?? undefined,
       },
       include: {
         author: {
@@ -298,7 +298,7 @@ export async function GET(
           return NextResponse.json<ApiResponse>(
             {
               success: false,
-              error: "Access denied to this private trip",
+              error: "Access denied. This trip belongs to a private profile. Follow the user to view their content.",
             },
             { status: 403 }
           );
