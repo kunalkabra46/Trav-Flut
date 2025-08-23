@@ -94,7 +94,9 @@ export async function POST(
         contentText: validatedData.contentText,
         mediaUrl: validatedData.mediaUrl,
         locationName: validatedData.locationName,
-        gpsCoordinates: validatedData.gpsCoordinates ?? undefined,
+        gpsCoordinates: validatedData.gpsCoordinates
+          ? JSON.stringify(validatedData.gpsCoordinates)
+          : undefined,
       },
       include: {
         author: {

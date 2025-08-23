@@ -103,13 +103,16 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () {
-                // Get the 'from' parameter or default to trips tab
-                final extra = GoRouterState.of(context).extra;
-                final from = (extra is Map && extra['from'] != null)
-                    ? extra['from'] as String
-                    : '/trips';
-                context.go(from);
-              },
+              // This is the standard and most reliable way to navigate back.
+              // It preserves the state of the previous screen, including the selected tab.
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                // This is a fallback in case there's no screen to pop to,
+                // which is unlikely in this flow but good practice to have.
+                context.go('/home');
+              }
+            },
             ),
             flexibleSpace: FlexibleSpaceBar(
               title: Text(

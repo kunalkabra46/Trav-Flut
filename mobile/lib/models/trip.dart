@@ -103,7 +103,8 @@ class TripCounts {
     required this.participants,
   });
 
-  factory TripCounts.fromJson(Map<String, dynamic> json) => _$TripCountsFromJson(json);
+  factory TripCounts.fromJson(Map<String, dynamic> json) =>
+      _$TripCountsFromJson(json);
   Map<String, dynamic> toJson() => _$TripCountsToJson(this);
 }
 
@@ -125,7 +126,8 @@ class TripParticipant {
     required this.user,
   });
 
-  factory TripParticipant.fromJson(Map<String, dynamic> json) => _$TripParticipantFromJson(json);
+  factory TripParticipant.fromJson(Map<String, dynamic> json) =>
+      _$TripParticipantFromJson(json);
   Map<String, dynamic> toJson() => _$TripParticipantToJson(this);
 }
 
@@ -159,7 +161,8 @@ class TripThreadEntry {
     this.media,
   });
 
-  factory TripThreadEntry.fromJson(Map<String, dynamic> json) => _$TripThreadEntryFromJson(json);
+  factory TripThreadEntry.fromJson(Map<String, dynamic> json) =>
+      _$TripThreadEntryFromJson(json);
   Map<String, dynamic> toJson() => _$TripThreadEntryToJson(this);
 }
 
@@ -172,6 +175,7 @@ class TripFinalPost {
   final String? caption;
   final bool isPublished;
   final DateTime createdAt;
+  final Trip? trip;
 
   const TripFinalPost({
     required this.id,
@@ -181,9 +185,11 @@ class TripFinalPost {
     this.caption,
     required this.isPublished,
     required this.createdAt,
+    this.trip,
   });
 
-  factory TripFinalPost.fromJson(Map<String, dynamic> json) => _$TripFinalPostFromJson(json);
+  factory TripFinalPost.fromJson(Map<String, dynamic> json) =>
+      _$TripFinalPostFromJson(json);
   Map<String, dynamic> toJson() => _$TripFinalPostToJson(this);
 }
 
@@ -223,7 +229,8 @@ class GpsCoordinates {
     required this.lng,
   });
 
-  factory GpsCoordinates.fromJson(Map<String, dynamic> json) => _$GpsCoordinatesFromJson(json);
+  factory GpsCoordinates.fromJson(Map<String, dynamic> json) =>
+      _$GpsCoordinatesFromJson(json);
   Map<String, dynamic> toJson() => _$GpsCoordinatesToJson(this);
 }
 
@@ -303,7 +310,8 @@ class CreateTripRequest {
     this.coverMediaUrl,
   });
 
-  factory CreateTripRequest.fromJson(Map<String, dynamic> json) => _$CreateTripRequestFromJson(json);
+  factory CreateTripRequest.fromJson(Map<String, dynamic> json) =>
+      _$CreateTripRequestFromJson(json);
   Map<String, dynamic> toJson() => _$CreateTripRequestToJson(this);
 }
 
@@ -325,6 +333,7 @@ class CreateThreadEntryRequest {
     this.taggedUserIds,
   });
 
-  factory CreateThreadEntryRequest.fromJson(Map<String, dynamic> json) => _$CreateThreadEntryRequestFromJson(json);
+  factory CreateThreadEntryRequest.fromJson(Map<String, dynamic> json) =>
+      _$CreateThreadEntryRequestFromJson(json);
   Map<String, dynamic> toJson() => _$CreateThreadEntryRequestToJson(this);
 }

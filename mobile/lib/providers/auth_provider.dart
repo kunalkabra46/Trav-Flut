@@ -54,12 +54,12 @@ class AuthProvider extends ChangeNotifier {
         });
         print('AuthProvider: userId = $userId');
         if (userId != null) {
-          print('AuthProvider: Calling getUser...');
+          print('AuthProvider: Calling getCurrentUser...');
           final response = await _apiService
-              .getUser(userId)
+              .getCurrentUser()
               .timeout(const Duration(seconds: 5), onTimeout: () {
-            print('AuthProvider: getUser() timed out!');
-            throw Exception('getUser() timed out');
+            print('AuthProvider: getCurrentUser() timed out!');
+            throw Exception('getCurrentUser() timed out');
           });
           print(
               'AuthProvider: getUser response = ${response.success} | ${response.data} | ${response.error}');
@@ -182,7 +182,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final refreshToken = await _storageService.getRefreshToken();
       if (refreshToken != null) {
-        await _apiService.logout(refreshToken);
+        await _apiService.logout();
       }
     } catch (e) {
       debugPrint('Logout error: $e');
