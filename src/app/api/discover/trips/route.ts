@@ -21,16 +21,24 @@ export async function GET(request: NextRequest) {
 
         try {
           const currentUserId = authenticatedReq.user!.userId;
+          console.log(`[API] GET /discover/trips - User: ${currentUserId}`);
+
           const { searchParams } = new URL(authenticatedReq.url);
+          const page = searchParams.get("page") || "1";
+          const limit = searchParams.get("limit") || "20";
+          console.log(
+            `[API] GET /discover/trips - Page: ${page}, Limit: ${limit}`
+          );
 
           // Validate pagination parameters
           const paginationData = paginationSchema.parse({
-            page: searchParams.get("page") || "1",
-            limit: searchParams.get("limit") || "20",
+            page: page,
+            limit: limit,
           });
 
-          const { page, limit } = paginationData;
-          const offset = (page - 1) * limit;
+          const { page: pageNum, limit: limitNum } = paginationData;
+          const offset = (pageNum - 1) * limitNum;
+          console.log(`[API] GET /discover/trips - Offset: ${offset}`);
 
           // Get optional filters
           const status = searchParams.get("status") as
@@ -47,13 +55,23 @@ export async function GET(request: NextRequest) {
             | "MIXED"
             | null;
 
+          console.log(
+            `[API] GET /discover/trips - Filters: status=${status}, mood=${mood}`
+          );
+
           // Get list of users that current user is following
+          console.log(
+            `[API] GET /discover/trips - Fetching followed users for user: ${currentUserId}`
+          );
           const followedUsers = await prisma.follow.findMany({
             where: { followerId: currentUserId },
             select: { followeeId: true },
           });
 
           const followedUserIds = followedUsers.map((f) => f.followeeId);
+          console.log(
+            `[API] GET /discover/trips - Found ${followedUserIds.length} followed users: ${followedUserIds}`
+          );
 
           // Build where clause for trips
           const whereClause: any = {
@@ -84,12 +102,22 @@ export async function GET(request: NextRequest) {
             whereClause.mood = mood;
           }
 
+          console.log(
+            `[API] GET /discover/trips - Where clause:`,
+            JSON.stringify(whereClause, null, 2)
+          );
+
           // Get total count for pagination
+          console.log(`[API] GET /discover/trips - Getting total count`);
           const totalCount = await prisma.trip.count({
             where: whereClause,
           });
+          console.log(`[API] GET /discover/trips - Total count: ${totalCount}`);
 
           // Get trips with user details and counts
+          console.log(
+            `[API] GET /discover/trips - Fetching trips with offset: ${offset}, limit: ${limitNum}`
+          );
           const trips = await prisma.trip.findMany({
             where: whereClause,
             include: {
@@ -121,8 +149,12 @@ export async function GET(request: NextRequest) {
               { createdAt: "desc" },
             ],
             skip: offset,
-            take: limit,
+            take: limitNum,
           });
+
+          console.log(
+            `[API] GET /discover/trips - Found ${trips.length} trips`
+          );
 
           // Transform to response format
           const tripsResponse: TripResponse[] = trips.map((trip) => ({
@@ -148,15 +180,20 @@ export async function GET(request: NextRequest) {
               : undefined,
           }));
 
-          const hasNext = offset + limit < totalCount;
+          const hasNext = offset + limitNum < totalCount;
+          console.log(`[API] GET /discover/trips - Has next: ${hasNext}`);
 
           const response: PaginatedResponse<TripResponse> = {
             items: tripsResponse,
-            page,
-            limit,
+            page: pageNum,
+            limit: limitNum,
             total: totalCount,
             hasNext,
           };
+
+          console.log(
+            `[API] GET /discover/trips - Response: ${tripsResponse.length} trips, page ${pageNum}, hasNext: ${hasNext}`
+          );
 
           return NextResponse.json<
             ApiResponse<PaginatedResponse<TripResponse>>
@@ -165,6 +202,7 @@ export async function GET(request: NextRequest) {
             data: response,
           });
         } catch (error: any) {
+          console.error(`[API] GET /discover/trips - Error:`, error);
           ErrorTracker.getInstance().trackError(
             error,
             { operation: "get_discover_trips" },

@@ -40,14 +40,17 @@ class _DiscoverTabState extends State<DiscoverTab> {
   }
 
   void _loadInitialTrips() {
+    debugPrint('[DiscoverTab] Loading initial trips');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        debugPrint('[DiscoverTab] Calling loadDiscoverTrips with refresh=true');
         context.read<FeedProvider>().loadDiscoverTrips(refresh: true);
       }
     });
   }
 
   void _onSearchChanged(String query) {
+    debugPrint('[DiscoverTab] Search query changed: "$query"');
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
       if (mounted) {
@@ -57,11 +60,14 @@ class _DiscoverTabState extends State<DiscoverTab> {
         });
 
         if (query.isNotEmpty) {
+          debugPrint('[DiscoverTab] Searching for users with query: "$query"');
           // Search for users
           context.read<UserProvider>().searchUsers(
                 search: query,
                 refresh: true,
               );
+        } else {
+          debugPrint('[DiscoverTab] Empty query, clearing user search');
         }
 
         setState(() {
@@ -74,12 +80,17 @@ class _DiscoverTabState extends State<DiscoverTab> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
+      debugPrint(
+          '[DiscoverTab] Near end of user search scroll, checking for more users');
       final userProvider = context.read<UserProvider>();
       if (userProvider.hasMoreUsers && !userProvider.isDiscoverLoading) {
+        debugPrint('[DiscoverTab] Loading more users');
         userProvider.searchUsers(
           search:
               _searchController.text.isEmpty ? null : _searchController.text,
         );
+      } else {
+        debugPrint('[DiscoverTab] No more users to load or already loading');
       }
     }
   }
@@ -87,10 +98,15 @@ class _DiscoverTabState extends State<DiscoverTab> {
   void _onTripsScroll() {
     if (_tripsScrollController.position.pixels >=
         _tripsScrollController.position.maxScrollExtent - 200) {
+      debugPrint(
+          '[DiscoverTab] Near end of trips scroll, checking for more trips');
       final feedProvider = context.read<FeedProvider>();
       if (feedProvider.hasMoreDiscoverTrips &&
           !feedProvider.isDiscoverTripsLoading) {
+        debugPrint('[DiscoverTab] Loading more discover trips');
         feedProvider.loadDiscoverTrips();
+      } else {
+        debugPrint('[DiscoverTab] No more trips to load or already loading');
       }
     }
   }
@@ -145,9 +161,17 @@ class _DiscoverTabState extends State<DiscoverTab> {
             child: TextField(
               controller: _searchController,
               onChanged: _onSearchChanged,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 16,
+              ),
               decoration: InputDecoration(
                 hintText: 'Search users or trips...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 16,
+                ),
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 suffixIcon: _isSearching
                     ? const SizedBox(
                         width: 20,
@@ -159,7 +183,7 @@ class _DiscoverTabState extends State<DiscoverTab> {
                       )
                     : _searchController.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear),
+                            icon: const Icon(Icons.clear, color: Colors.grey),
                             onPressed: () {
                               _searchController.clear();
                               setState(() {
@@ -414,135 +438,118 @@ class _DiscoverTabState extends State<DiscoverTab> {
   }
 
   Widget _buildDiscoverTripCard(BuildContext context, Trip trip) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: InkWell(
-        onTap: () =>
-            context.go('/trip/${trip.id}', extra: {'from': '/discover'}),
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Cover image
-            Expanded(
-              flex: 3,
-              child: Container(
-                decoration: const BoxDecoration(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                ),
-                child: trip.coverMediaUrl != null
-                    ? ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16)),
-                        child: Image.network(
-                          trip.coverMediaUrl!,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return _buildTripPlaceholder(context, trip);
-                          },
-                        ),
-                      )
-                    : _buildTripPlaceholder(context, trip),
-              ),
+  return Card(
+    elevation: 3,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: () => context.go('/trip/${trip.id}',
+          extra: {'from': '/home', 'tab': 'discover'}),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch children to fill width
+        children: [
+          // Cover image
+          Expanded(
+            flex: 5,
+            child: SizedBox(
+              width: double.infinity,
+              child: trip.coverMediaUrl != null
+                  ? Image.network(
+                      trip.coverMediaUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return _buildTripPlaceholder(context, trip);
+                      },
+                    )
+                  : _buildTripPlaceholder(context, trip),
             ),
-
-            // Trip info
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          // Trip info
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top section: Status and Mood
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Status badge
-                    Row(
-                      children: [
-                        _buildCompactStatusBadge(context, trip.status),
-                        const Spacer(),
-                        if (trip.mood != null)
-                          Text(
-                            _getTripMoodEmoji(trip.mood!),
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Title
-                    Text(
-                      trip.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    // Destination
-                    Text(
-                      trip.destinations.first,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    const Spacer(),
-
-                    // Author info
-                    if (trip.user != null)
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 10,
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primary,
-                            backgroundImage: trip.user!.avatarUrl != null
-                                ? NetworkImage(trip.user!.avatarUrl!)
-                                : null,
-                            child: trip.user!.avatarUrl == null
-                                ? Text(
-                                    trip.user!.name
-                                            ?.substring(0, 1)
-                                            .toUpperCase() ??
-                                        'U',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              trip.user!.name ?? 'Unknown',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                    _buildCompactStatusBadge(context, trip.status),
+                    if (trip.mood != null)
+                      Text(
+                        _getTripMoodEmoji(trip.mood!),
+                        style: const TextStyle(fontSize: 16),
                       ),
                   ],
                 ),
-              ),
-            ),
-          ],
+                const SizedBox(height: 6),
+                // Title
+                if (trip.title.isNotEmpty)
+                  Text(
+                    trip.title,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                const SizedBox(height: 4),
+                // Destination
+                if (trip.destinations.isNotEmpty)
+                  Text(
+                    trip.destinations.first,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                const SizedBox(height: 8),
+                // Author info
+                if (trip.user != null)
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 10,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        backgroundImage: trip.user!.avatarUrl != null
+                            ? NetworkImage(trip.user!.avatarUrl!)
+                            : null,
+                        child: trip.user!.avatarUrl == null
+                            ? Text(
+                                trip.user!.name
+                                        ?.substring(0, 1)
+                                        .toUpperCase() ??
+                                    'U',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          trip.user!.name ?? 'Unknown',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+               ],
+             ),
+           ),
+         ],
         ),
       ),
     );

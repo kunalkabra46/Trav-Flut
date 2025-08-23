@@ -25,24 +25,36 @@ export async function GET(request: NextRequest) {
 
         try {
           const currentUserId = authenticatedReq.user!.userId;
+          console.log(`[API] GET /feed/home - User: ${currentUserId}`);
+
           const { searchParams } = new URL(authenticatedReq.url);
+          const page = searchParams.get("page") || "1";
+          const limit = searchParams.get("limit") || "20";
+          console.log(`[API] GET /feed/home - Page: ${page}, Limit: ${limit}`);
 
           // Validate pagination parameters
           const paginationData = paginationSchema.parse({
-            page: searchParams.get("page") || "1",
-            limit: searchParams.get("limit") || "20",
+            page: page,
+            limit: limit,
           });
 
-          const { page, limit } = paginationData;
-          const offset = (page - 1) * limit;
+          const { page: pageNum, limit: limitNum } = paginationData;
+          const offset = (pageNum - 1) * limitNum;
+          console.log(`[API] GET /feed/home - Offset: ${offset}`);
 
           // Get list of users that current user is following
+          console.log(
+            `[API] GET /feed/home - Fetching followed users for user: ${currentUserId}`
+          );
           const followedUsers = await prisma.follow.findMany({
             where: { followerId: currentUserId },
             select: { followeeId: true },
           });
 
           const followedUserIds = followedUsers.map((f) => f.followeeId);
+          console.log(
+            `[API] GET /feed/home - Found ${followedUserIds.length} followed users: ${followedUserIds}`
+          );
 
           // Build where clause for final posts
           const whereClause: any = {
@@ -69,12 +81,22 @@ export async function GET(request: NextRequest) {
             ],
           };
 
+          console.log(
+            `[API] GET /feed/home - Where clause:`,
+            JSON.stringify(whereClause, null, 2)
+          );
+
           // Get total count for pagination
+          console.log(`[API] GET /feed/home - Getting total count`);
           const totalCount = await prisma.tripFinalPost.count({
             where: whereClause,
           });
+          console.log(`[API] GET /feed/home - Total count: ${totalCount}`);
 
           // Get final posts with trip and user details
+          console.log(
+            `[API] GET /feed/home - Fetching final posts with offset: ${offset}, limit: ${limitNum}`
+          );
           const finalPosts = await prisma.tripFinalPost.findMany({
             where: whereClause,
             include: {
@@ -105,8 +127,12 @@ export async function GET(request: NextRequest) {
             },
             orderBy: [{ createdAt: "desc" }, { trip: { updatedAt: "desc" } }],
             skip: offset,
-            take: limit,
+            take: limitNum,
           });
+
+          console.log(
+            `[API] GET /feed/home - Found ${finalPosts.length} final posts`
+          );
 
           // Transform to response format
           const finalPostsResponse: TripFinalPostResponse[] = finalPosts.map(
@@ -143,15 +169,20 @@ export async function GET(request: NextRequest) {
             })
           );
 
-          const hasNext = offset + limit < totalCount;
+          const hasNext = offset + limitNum < totalCount;
+          console.log(`[API] GET /feed/home - Has next: ${hasNext}`);
 
           const response: PaginatedResponse<TripFinalPostResponse> = {
             items: finalPostsResponse,
-            page,
-            limit,
+            page: pageNum,
+            limit: limitNum,
             total: totalCount,
             hasNext,
           };
+
+          console.log(
+            `[API] GET /feed/home - Response: ${finalPostsResponse.length} posts, page ${pageNum}, hasNext: ${hasNext}`
+          );
 
           return NextResponse.json<
             ApiResponse<PaginatedResponse<TripFinalPostResponse>>
@@ -160,6 +191,7 @@ export async function GET(request: NextRequest) {
             data: response,
           });
         } catch (error: any) {
+          console.error(`[API] GET /feed/home - Error:`, error);
           ErrorTracker.getInstance().trackError(
             error,
             { operation: "get_home_feed" },

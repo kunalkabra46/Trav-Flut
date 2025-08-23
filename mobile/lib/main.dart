@@ -23,20 +23,27 @@ import 'package:tripthread/utils/app_theme.dart';
 import 'package:tripthread/utils/error_handler.dart';
 
 void main() async {
+  debugPrint('[main] Starting TripThread app initialization');
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
+    debugPrint('[main] Initializing services');
+
     // Initialize services
     final storageService = StorageService();
     await storageService.init();
+    debugPrint('[main] StorageService initialized');
 
     final connectivityService = ConnectivityService();
     await connectivityService.initialize();
+    debugPrint('[main] ConnectivityService initialized');
 
     final apiService = ApiService();
     final tripService = TripService();
     final mediaService = MediaService();
+    debugPrint('[main] Core services created');
 
+    debugPrint('[main] Setting up providers');
     runApp(
       MultiProvider(
         providers: [
@@ -47,29 +54,41 @@ void main() async {
           ChangeNotifierProvider<ConnectivityService>.value(
               value: connectivityService),
           ChangeNotifierProvider<AuthProvider>(
-            create: (context) => AuthProvider(
-              apiService: apiService,
-              storageService: storageService,
-            ),
+            create: (context) {
+              debugPrint('[main] Creating AuthProvider');
+              return AuthProvider(
+                apiService: apiService,
+                storageService: storageService,
+              );
+            },
           ),
           ChangeNotifierProvider<UserProvider>(
-            create: (context) => UserProvider(apiService: apiService),
+            create: (context) {
+              debugPrint('[main] Creating UserProvider');
+              return UserProvider(apiService: apiService);
+            },
           ),
           ChangeNotifierProvider<TripProvider>(
             create: (context) {
+              debugPrint('[main] Creating TripProvider');
               final provider = TripProvider(tripService: tripService);
               tripService.setStorageService(storageService);
               return provider;
             },
           ),
           ChangeNotifierProvider<FeedProvider>(
-            create: (context) => FeedProvider(apiService: apiService),
+            create: (context) {
+              debugPrint('[main] Creating FeedProvider');
+              return FeedProvider(apiService: apiService);
+            },
           ),
         ],
         child: TripThreadAppRouter(),
       ),
     );
+    debugPrint('[main] App started successfully');
   } catch (error) {
+    debugPrint('[main] App initialization failed: $error');
     ErrorHandler.logError(error, context: 'App initialization');
 
     // Show error screen or fallback

@@ -23,11 +23,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint(
+        '[HomeScreen] Initializing with initialTab: ${widget.initialTab}');
     _currentIndex = widget.initialTab;
     // Initialize trip provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('[HomeScreen] Initializing providers');
       context.read<TripProvider>().initialize();
+      debugPrint('[HomeScreen] TripProvider initialized');
       context.read<FeedProvider>().loadHomeFeed(refresh: true);
+      debugPrint('[HomeScreen] FeedProvider loadHomeFeed called');
     });
   }
 
@@ -110,8 +115,10 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   }
 
   void _loadInitialFeed() {
+    debugPrint('[HomeFeedScreen] Loading initial feed');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        debugPrint('[HomeFeedScreen] Calling loadHomeFeed with refresh=true');
         context.read<FeedProvider>().loadHomeFeed(refresh: true);
       }
     });
@@ -120,10 +127,15 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
+      debugPrint(
+          '[HomeFeedScreen] Near end of scroll, checking for more posts');
       final feedProvider = context.read<FeedProvider>();
       if (feedProvider.hasMoreHomeFeedPosts &&
           !feedProvider.isHomeFeedLoading) {
+        debugPrint('[HomeFeedScreen] Loading more home feed posts');
         feedProvider.loadHomeFeed();
+      } else {
+        debugPrint('[HomeFeedScreen] No more posts to load or already loading');
       }
     }
   }
@@ -273,11 +285,16 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 CircleAvatar(
                   radius: 20,
                   backgroundColor: Theme.of(context).colorScheme.primary,
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  backgroundImage: post.trip?.user?.avatarUrl != null
+                      ? NetworkImage(post.trip!.user!.avatarUrl!)
+                      : null,
+                  child: post.trip?.user?.avatarUrl == null
+                      ? Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 20,
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -285,7 +302,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Travel Story', // Placeholder since we don't have user info in TripFinalPost
+                        post.trip?.user?.name ??
+                            post.trip?.user?.username ??
+                            'Travel Story',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
