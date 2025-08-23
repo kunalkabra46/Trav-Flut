@@ -164,6 +164,8 @@ export async function GET(
       ...trip,
       startDate: trip.startDate?.toISOString() || undefined,
       endDate: trip.endDate?.toISOString() || undefined,
+      entryCount: trip.entryCount,
+      participantCount: trip.participantCount,
       createdAt: trip.createdAt.toISOString(),
       updatedAt: trip.updatedAt.toISOString(),
       user: trip.user

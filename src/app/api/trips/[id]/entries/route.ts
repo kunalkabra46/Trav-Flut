@@ -43,6 +43,34 @@ export async function POST(
     // Validate input
     const validatedData = createThreadEntrySchema.parse(body);
 
+    // Resolve tagged usernames to user IDs
+    let taggedUserIds: string[] = [];
+    if (
+      validatedData.taggedUsernames &&
+      validatedData.taggedUsernames.length > 0
+    ) {
+      const taggedUsers = await prisma.user.findMany({
+        where: {
+          username: { in: validatedData.taggedUsernames },
+        },
+        select: { id: true, username: true },
+      });
+
+      taggedUserIds = taggedUsers.map((user) => user.id);
+
+      // Log if some usernames weren't found
+      const foundUsernames = taggedUsers.map((user) => user.username);
+      const notFoundUsernames = validatedData.taggedUsernames.filter(
+        (username) => !foundUsernames.includes(username)
+      );
+
+      if (notFoundUsernames.length > 0) {
+        console.log(
+          `[DEBUG] Tagged usernames not found: ${notFoundUsernames.join(", ")}`
+        );
+      }
+    }
+
     // Check if trip exists and user has access
     const trip = await prisma.trip.findUnique({
       where: { id: tripId },
@@ -86,40 +114,50 @@ export async function POST(
     }
 
     // Create thread entry
-    const threadEntry = await prisma.tripThreadEntry.create({
-      data: {
-        tripId,
-        authorId: userId,
-        type: validatedData.type,
-        contentText: validatedData.contentText,
-        mediaUrl: validatedData.mediaUrl,
-        locationName: validatedData.locationName,
-        gpsCoordinates: validatedData.gpsCoordinates
-          ? JSON.stringify(validatedData.gpsCoordinates)
-          : undefined,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            name: true,
-            avatarUrl: true,
-            bio: true,
-            isPrivate: true,
-            createdAt: true,
-            updatedAt: true,
-          },
+    const [threadEntry, updatedTrip] = await prisma.$transaction([
+      prisma.tripThreadEntry.create({
+        data: {
+          tripId,
+          authorId: userId,
+          type: validatedData.type,
+          contentText: validatedData.contentText,
+          mediaUrl: validatedData.mediaUrl,
+          locationName: validatedData.locationName,
+          gpsCoordinates: validatedData.gpsCoordinates
+            ? JSON.stringify(validatedData.gpsCoordinates)
+            : undefined,
         },
-        media: true,
-      },
-    });
+        include: {
+          author: {
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              name: true,
+              avatarUrl: true,
+              bio: true,
+              isPrivate: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+          media: true,
+        },
+      }),
+      // Increment entry count
+      prisma.trip.update({
+        where: { id: tripId },
+        data: {
+          entryCount: { increment: 1 },
+          updatedAt: new Date(),
+        },
+      }),
+    ]);
 
     // Add tags if provided
-    if (validatedData.taggedUserIds && validatedData.taggedUserIds.length > 0) {
+    if (taggedUserIds.length > 0) {
       await prisma.tripThreadTag.createMany({
-        data: validatedData.taggedUserIds.map((taggedUserId) => ({
+        data: taggedUserIds.map((taggedUserId) => ({
           threadEntryId: threadEntry.id,
           taggedUserId,
         })),
@@ -300,7 +338,8 @@ export async function GET(
           return NextResponse.json<ApiResponse>(
             {
               success: false,
-              error: "Access denied. This trip belongs to a private profile. Follow the user to view their content.",
+              error:
+                "Access denied. This trip belongs to a private profile. Follow the user to view their content.",
             },
             { status: 403 }
           );

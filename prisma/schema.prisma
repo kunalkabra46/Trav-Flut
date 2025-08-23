@@ -151,6 +151,8 @@ model Trip {
   type           TripType?
   coverMediaUrl  String?
   status         TripStatus         @default(UPCOMING)
+  entryCount     Int                @default(0)
+  participantCount Int              @default(1)
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 

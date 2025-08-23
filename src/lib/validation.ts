@@ -251,7 +251,10 @@ export const createThreadEntrySchema = z
         z
           .string()
           .max(1000, "Content must be less than 1000 characters")
-          .transform((text) => text.trim()),
+          .transform((text) => {
+            const trimmed = text.trim();
+            return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+          }),
         z.null(),
         z.undefined(),
       ])
@@ -316,10 +319,16 @@ export const createThreadEntrySchema = z
         );
         return val;
       }),
-    taggedUserIds: z
+    taggedUsernames: z
       .union([
         z
-          .array(z.string().uuid("Invalid user ID format"))
+          .array(
+            z
+              .string()
+              .min(3, "Username must be at least 3 characters")
+              .max(30, "Username too long")
+              .regex(/^[a-zA-Z0-9_]+$/, "Invalid username format")
+          )
           .max(10, "Maximum 10 users can be tagged"),
         z.null(),
         z.undefined(),
@@ -327,7 +336,7 @@ export const createThreadEntrySchema = z
       .optional()
       .transform((val) => {
         console.log(
-          `[DEBUG] taggedUserIds validation - received: ${val}, type: ${typeof val}`
+          `[DEBUG] taggedUsernames validation - received: ${val}, type: ${typeof val}`
         );
         return val;
       }),

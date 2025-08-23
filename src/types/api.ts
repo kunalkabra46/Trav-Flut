@@ -80,14 +80,7 @@ export interface TripResponse {
   startDate?: string | null;
   endDate?: string | null;
   destinations: string[];
-  mood?:
-    | "RELAXED"
-    | "ADVENTURE"
-    | "SPIRITUAL"
-    | "CULTURAL"
-    | "PARTY"
-    | "MIXED"
-    | null;
+  mood?: "RELAXED" | "ADVENTURE" | "SPIRITUAL" | "CULTURAL" | "PARTY" | "MIXED" | null;
   type?: "SOLO" | "GROUP" | "COUPLE" | "FAMILY" | null;
   coverMediaUrl?: string | null;
   status: "UPCOMING" | "ONGOING" | "ENDED";
@@ -157,14 +150,7 @@ export interface CreateTripRequest {
   startDate?: string | null;
   endDate?: string | null;
   destinations: string[];
-  mood?:
-    | "RELAXED"
-    | "ADVENTURE"
-    | "SPIRITUAL"
-    | "CULTURAL"
-    | "PARTY"
-    | "MIXED"
-    | null;
+  mood?: "RELAXED" | "ADVENTURE" | "SPIRITUAL" | "CULTURAL" | "PARTY" | "MIXED" | null;
   type?: "SOLO" | "GROUP" | "COUPLE" | "FAMILY" | null;
   coverMediaUrl?: string | null;
 }
@@ -175,7 +161,7 @@ export interface CreateThreadEntryRequest {
   mediaUrl?: string | null;
   locationName?: string | null;
   gpsCoordinates?: { lat: number | null; lng: number | null } | null;
-  taggedUserIds?: string[] | null;
+  taggedUsernames?: string[] | null;
 }
 
 export interface AddParticipantRequest {
