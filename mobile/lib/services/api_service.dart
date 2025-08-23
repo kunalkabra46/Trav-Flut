@@ -16,6 +16,7 @@ class ApiService {
   VoidCallback? _onUnauthorized;
 
   ApiService() {
+    debugPrint('[ApiService] Initializing with baseUrl: $baseUrl');
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 30),
@@ -29,31 +30,61 @@ class ApiService {
   }
 
   void setStorageService(StorageService storageService) {
+    debugPrint('[ApiService] Setting storage service');
     _storageService = storageService;
   }
 
   void setUnauthorizedCallback(VoidCallback callback) {
+    debugPrint('[ApiService] Setting unauthorized callback');
     _onUnauthorized = callback;
   }
 
   void _setupInterceptors() {
+    debugPrint('[ApiService] Setting up interceptors');
+
     // Request interceptor to add auth token
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
+        debugPrint('[ApiService] Request: ${options.method} ${options.path}');
+        debugPrint('[ApiService] Request headers: ${options.headers}');
+        if (options.data != null) {
+          debugPrint('[ApiService] Request data: ${options.data}');
+        }
+
         if (_storageService != null) {
           final token = await _storageService!.getAccessToken();
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
+            debugPrint(
+                '[ApiService] Added auth token: ${token.substring(0, 10)}...');
+          } else {
+            debugPrint('[ApiService] No auth token available');
           }
         }
         handler.next(options);
       },
+      onResponse: (response, handler) {
+        debugPrint(
+            '[ApiService] Response: ${response.statusCode} ${response.requestOptions.path}');
+        debugPrint('[ApiService] Response data: ${response.data}');
+        handler.next(response);
+      },
       onError: (error, handler) async {
+        debugPrint(
+            '[ApiService] Error: ${error.type} ${error.response?.statusCode} ${error.requestOptions.path}');
+        debugPrint('[ApiService] Error message: ${error.message}');
+        if (error.response?.data != null) {
+          debugPrint(
+              '[ApiService] Error response data: ${error.response?.data}');
+        }
+
         // Handle token refresh on 401
         if (error.response?.statusCode == 401 && _storageService != null) {
+          debugPrint('[ApiService] Attempting token refresh...');
           final refreshToken = await _storageService!.getRefreshToken();
           if (refreshToken != null) {
             try {
+              debugPrint('[ApiService] Calling refresh token endpoint');
               final response = await _dio.post('/auth/refresh-token', data: {
                 'refreshToken': refreshToken,
               });
@@ -62,13 +93,18 @@ class ApiService {
                   response.data['success'] == true) {
                 final newToken = response.data['data']['accessToken'];
                 await _storageService!.saveAccessToken(newToken);
+                debugPrint('[ApiService] Token refreshed successfully');
 
                 // Retry original request
                 final opts = error.requestOptions;
                 opts.headers['Authorization'] = 'Bearer $newToken';
+                debugPrint(
+                    '[ApiService] Retrying original request with new token');
                 final cloneReq = await _dio.fetch(opts);
                 return handler.resolve(cloneReq);
               } else {
+                debugPrint(
+                    '[ApiService] Token refresh failed: ${response.data}');
                 // Refresh failed, clear tokens and notify
                 await _storageService!.clearTokens();
                 if (_onUnauthorized != null) {
@@ -76,6 +112,7 @@ class ApiService {
                 }
               }
             } catch (e) {
+              debugPrint('[ApiService] Token refresh error: $e');
               // Refresh failed, clear tokens and notify
               await _storageService!.clearTokens();
               if (_onUnauthorized != null) {
@@ -83,6 +120,7 @@ class ApiService {
               }
             }
           } else {
+            debugPrint('[ApiService] No refresh token available');
             // No refresh token, clear tokens and notify
             await _storageService!.clearTokens();
             if (_onUnauthorized != null) {
@@ -103,8 +141,8 @@ class ApiService {
     String? username,
   }) async {
     try {
-      print(
-          '[ApiService] signup called with email: $email, name: $name, username: $username');
+      debugPrint(
+          '[ApiService] Signup called with email: $email, name: $name, username: $username');
       final response = await _dio.post('/auth/signup', data: {
         'email': email,
         'password': password,
@@ -112,16 +150,22 @@ class ApiService {
         if (username != null) 'username': username,
       });
 
-      return ApiResponse<AuthResponse>.fromJson(
-        response.data,
-        (json) => AuthResponse.fromJson(json as Map<String, dynamic>),
+      debugPrint('[ApiService] Signup response: ${response.statusCode}');
+      return ApiResponse<AuthResponse>(
+        success: response.data['success'],
+        data: AuthResponse.fromJson(response.data['data']),
       );
     } on DioException catch (e) {
-      print('[ApiService] signup DioException: ${e.toString()}');
-      print('[ApiService] signup DioException response: ${e.response?.data}');
+      debugPrint('[ApiService] Signup DioException: ${e.message}');
       return ApiResponse<AuthResponse>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      debugPrint('[ApiService] Signup unexpected error: $e');
+      return ApiResponse<AuthResponse>(
+        success: false,
+        error: 'An unexpected error occurred',
       );
     }
   }
@@ -131,252 +175,216 @@ class ApiService {
     required String password,
   }) async {
     try {
-      print('[ApiService] login called with email: $email');
+      debugPrint('[ApiService] Login called with email: $email');
       final response = await _dio.post('/auth/login', data: {
         'email': email,
         'password': password,
       });
 
-      return ApiResponse<AuthResponse>.fromJson(
-        response.data,
-        (json) => AuthResponse.fromJson(json as Map<String, dynamic>),
+      debugPrint('[ApiService] Login response: ${response.statusCode}');
+      return ApiResponse<AuthResponse>(
+        success: response.data['success'],
+        data: AuthResponse.fromJson(response.data['data']),
       );
     } on DioException catch (e) {
-      print('[ApiService] login DioException: ${e.toString()}');
-      print('[ApiService] login DioException response: ${e.response?.data}');
+      debugPrint('[ApiService] Login DioException: ${e.message}');
       return ApiResponse<AuthResponse>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
       );
+    } catch (e) {
+      debugPrint('[ApiService] Login unexpected error: $e');
+      return ApiResponse<AuthResponse>(
+        success: false,
+        error: 'An unexpected error occurred',
+      );
     }
   }
 
-  Future<ApiResponse<void>> logout(String refreshToken) async {
+  Future<ApiResponse<void>> logout() async {
     try {
-      final response = await _dio.post('/auth/logout', data: {
-        'refreshToken': refreshToken,
-      });
-
+      debugPrint('[ApiService] Logout called');
+      final response = await _dio.post('/auth/logout');
+      debugPrint('[ApiService] Logout response: ${response.statusCode}');
       return ApiResponse<void>(
         success: response.data['success'],
-        message: response.data['message'],
       );
     } on DioException catch (e) {
+      debugPrint('[ApiService] Logout DioException: ${e.message}');
       return ApiResponse<void>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      debugPrint('[ApiService] Logout unexpected error: $e');
+      return ApiResponse<void>(
+        success: false,
+        error: 'An unexpected error occurred',
       );
     }
   }
 
   // User endpoints
-  Future<ApiResponse<User>> getUser(String userId) async {
+  Future<ApiResponse<User>> getCurrentUser() async {
     try {
-      final response = await _dio.get('/users/$userId');
-
-      return ApiResponse<User>.fromJson(
-        response.data,
-        (json) => User.fromJson(json as Map<String, dynamic>),
+      debugPrint('[ApiService] Getting current user');
+      final response = await _dio.get('/users/me');
+      debugPrint(
+          '[ApiService] Get current user response: ${response.statusCode}');
+      return ApiResponse<User>(
+        success: response.data['success'],
+        data: User.fromJson(response.data['data']),
       );
     } on DioException catch (e) {
+      debugPrint('[ApiService] Get current user DioException: ${e.message}');
       return ApiResponse<User>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      debugPrint('[ApiService] Get current user unexpected error: $e');
+      return ApiResponse<User>(
+        success: false,
+        error: 'An unexpected error occurred',
       );
     }
   }
 
   Future<ApiResponse<User>> updateProfile({
-    required String userId,
     String? name,
     String? username,
     String? bio,
     String? avatarUrl,
-    bool? isPrivate,
   }) async {
     try {
-      final response = await _dio.put('/users/$userId', data: {
-        if (name != null) 'name': name,
-        if (username != null) 'username': username,
-        if (bio != null) 'bio': bio,
-        if (avatarUrl != null) 'avatarUrl': avatarUrl,
-        if (isPrivate != null) 'isPrivate': isPrivate,
-      });
+      debugPrint(
+          '[ApiService] Updating profile: name=$name, username=$username, bio=$bio, avatarUrl=$avatarUrl');
+      final data = <String, dynamic>{};
+      if (name != null) data['name'] = name;
+      if (username != null) data['username'] = username;
+      if (bio != null) data['bio'] = bio;
+      if (avatarUrl != null) data['avatarUrl'] = avatarUrl;
 
-      return ApiResponse<User>.fromJson(
-        response.data,
-        (json) => User.fromJson(json as Map<String, dynamic>),
+      final response = await _dio.put('/users/me', data: data);
+      debugPrint(
+          '[ApiService] Update profile response: ${response.statusCode}');
+      return ApiResponse<User>(
+        success: response.data['success'],
+        data: User.fromJson(response.data['data']),
       );
     } on DioException catch (e) {
+      debugPrint('[ApiService] Update profile DioException: ${e.message}');
       return ApiResponse<User>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
       );
-    }
-  }
-
-  Future<ApiResponse<User>> togglePrivacy(String userId) async {
-    try {
-      final response = await _dio.patch('/users/$userId/privacy');
-
-      return ApiResponse<User>.fromJson(
-        response.data,
-        (json) => User.fromJson(json as Map<String, dynamic>),
-      );
-    } on DioException catch (e) {
+    } catch (e) {
+      debugPrint('[ApiService] Update profile unexpected error: $e');
       return ApiResponse<User>(
         success: false,
-        error: e.response?.data['error'] ?? 'Network error occurred',
+        error: 'An unexpected error occurred',
       );
     }
   }
 
-  Future<ApiResponse<UserStats>> getUserStats(String userId) async {
-    try {
-      final response = await _dio.get('/users/$userId/stats');
-
-      return ApiResponse<UserStats>.fromJson(
-        response.data,
-        (json) => UserStats.fromJson(json as Map<String, dynamic>),
-      );
-    } on DioException catch (e) {
-      return ApiResponse<UserStats>(
-        success: false,
-        error: e.response?.data['error'] ?? 'Network error occurred',
-      );
-    }
-  }
-
-  // Follow endpoints
-  Future<ApiResponse<void>> followUser(String userId) async {
-    try {
-      final response = await _dio.post('/follow/$userId');
-
-      return ApiResponse<void>(
-        success: response.data['success'],
-        message: response.data['message'],
-      );
-    } on DioException catch (e) {
-      return ApiResponse<void>(
-        success: false,
-        error: e.response?.data['error'] ?? 'Network error occurred',
-      );
-    }
-  }
-
-  Future<ApiResponse<void>> unfollowUser(String userId) async {
-    try {
-      final response = await _dio.delete('/follow/$userId');
-
-      return ApiResponse<void>(
-        success: response.data['success'],
-        message: response.data['message'],
-      );
-    } on DioException catch (e) {
-      return ApiResponse<void>(
-        success: false,
-        error: e.response?.data['error'] ?? 'Network error occurred',
-      );
-    }
-  }
-
-  Future<ApiResponse<List<User>>> getFollowers(String userId,
-      {int page = 1, int limit = 20}) async {
-    try {
-      final response =
-          await _dio.get('/users/$userId/followers', queryParameters: {
-        'page': page,
-        'limit': limit,
-      });
-
-      final followers = (response.data['data']['followers'] as List)
-          .map((json) => User.fromJson(json))
-          .toList();
-
-      return ApiResponse<List<User>>(
-        success: response.data['success'],
-        data: followers,
-      );
-    } on DioException catch (e) {
-      return ApiResponse<List<User>>(
-        success: false,
-        error: e.response?.data['error'] ?? 'Network error occurred',
-      );
-    }
-  }
-
-  Future<ApiResponse<List<User>>> getFollowing(String userId,
-      {int page = 1, int limit = 20}) async {
-    try {
-      final response =
-          await _dio.get('/users/$userId/following', queryParameters: {
-        'page': page,
-        'limit': limit,
-      });
-
-      final following = (response.data['data']['following'] as List)
-          .map((json) => User.fromJson(json))
-          .toList();
-
-      return ApiResponse<List<User>>(
-        success: response.data['success'],
-        data: following,
-      );
-    } on DioException catch (e) {
-      return ApiResponse<List<User>>(
-        success: false,
-        error: e.response?.data['error'] ?? 'Network error occurred',
-      );
-    }
-  }
-
-  Future<ApiResponse<bool>> getFollowStatus(String userId) async {
-    try {
-      final response = await _dio.get('/follow/$userId');
-
-      return ApiResponse<bool>(
-        success: response.data['success'],
-        data: (response.data['data'] != null)
-            ? (response.data['data']['isFollowing'] ?? false)
-            : false,
-      );
-    } on DioException catch (e) {
-      return ApiResponse<bool>(
-        success: false,
-        error: e.response?.data['error'] ?? 'Network error occurred',
-        data: false, // Default to not following on error
-      );
-    }
-  }
-
-  Future<ApiResponse<Map<String, dynamic>>> searchUsers({
+  Future<ApiResponse<List<Map<String, dynamic>>>> searchUsers({
     String? search,
     int page = 1,
     int limit = 20,
+    bool refresh = false,
   }) async {
     try {
+      debugPrint(
+          '[ApiService] Searching users: search=$search, page=$page, limit=$limit, refresh=$refresh');
       final queryParams = <String, dynamic>{
         'page': page.toString(),
         'limit': limit.toString(),
       };
-
       if (search != null && search.isNotEmpty) {
         queryParams['search'] = search;
       }
 
       final response = await _dio.get('/users', queryParameters: queryParams);
+      debugPrint('[ApiService] Search users response: ${response.statusCode}');
 
-      return ApiResponse<Map<String, dynamic>>(
-        success: response.data['success'],
-        data: response.data['data'],
-      );
+      if (response.data['success'] && response.data['data'] != null) {
+        final data = response.data['data'];
+        final users = (data['items'] as List<dynamic>)
+            .map((user) => Map<String, dynamic>.from(user))
+            .toList();
+        final hasNext = data['hasNext'] as bool;
+
+        debugPrint(
+            '[ApiService] Found ${users.length} users, hasNext: $hasNext');
+        return ApiResponse<List<Map<String, dynamic>>>(
+          success: true,
+          data: users,
+        );
+      } else {
+        debugPrint(
+            '[ApiService] Search users failed: ${response.data['error']}');
+        return ApiResponse<List<Map<String, dynamic>>>(
+          success: false,
+          error: response.data['error'] ?? 'Failed to search users',
+        );
+      }
     } on DioException catch (e) {
-      return ApiResponse<Map<String, dynamic>>(
+      debugPrint('[ApiService] Search users DioException: ${e.message}');
+      return ApiResponse<List<Map<String, dynamic>>>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
       );
     } catch (e) {
-      return ApiResponse<Map<String, dynamic>>(
+      debugPrint('[ApiService] Search users unexpected error: $e');
+      return ApiResponse<List<Map<String, dynamic>>>(
+        success: false,
+        error: 'An unexpected error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<void>> followUser(String userId,
+      {String? currentUserId}) async {
+    try {
+      debugPrint('[ApiService] Following user: $userId');
+      final response = await _dio.post('/follow/$userId');
+      debugPrint('[ApiService] Follow user response: ${response.statusCode}');
+      return ApiResponse<void>(
+        success: response.data['success'],
+      );
+    } on DioException catch (e) {
+      debugPrint('[ApiService] Follow user DioException: ${e.message}');
+      return ApiResponse<void>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      debugPrint('[ApiService] Follow user unexpected error: $e');
+      return ApiResponse<void>(
+        success: false,
+        error: 'An unexpected error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<void>> unfollowUser(String userId,
+      {String? currentUserId}) async {
+    try {
+      debugPrint('[ApiService] Unfollowing user: $userId');
+      final response = await _dio.delete('/follow/$userId');
+      debugPrint('[ApiService] Unfollow user response: ${response.statusCode}');
+      return ApiResponse<void>(
+        success: response.data['success'],
+      );
+    } on DioException catch (e) {
+      debugPrint('[ApiService] Unfollow user DioException: ${e.message}');
+      return ApiResponse<void>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      debugPrint('[ApiService] Unfollow user unexpected error: $e');
+      return ApiResponse<void>(
         success: false,
         error: 'An unexpected error occurred',
       );
@@ -384,166 +392,311 @@ class ApiService {
   }
 
   // Trip endpoints
-  Future<ApiResponse<Trip>> createTrip(CreateTripRequest request) async {
+  Future<ApiResponse<Trip>> createTrip({
+    required String title,
+    String? description,
+    DateTime? startDate,
+    DateTime? endDate,
+    required List<String> destinations,
+    String? mood,
+    String? type,
+    String? coverMediaUrl,
+  }) async {
     try {
-      final response = await _dio.post('/trips', data: request.toJson());
+      debugPrint(
+          '[ApiService] Creating trip: title=$title, destinations=$destinations');
+      final data = {
+        'title': title,
+        if (description != null) 'description': description,
+        if (startDate != null) 'startDate': startDate.toIso8601String(),
+        if (endDate != null) 'endDate': endDate.toIso8601String(),
+        'destinations': destinations,
+        if (mood != null) 'mood': mood,
+        if (type != null) 'type': type,
+        if (coverMediaUrl != null) 'coverMediaUrl': coverMediaUrl,
+      };
 
-      return ApiResponse<Trip>.fromJson(
-        response.data,
-        (json) => Trip.fromJson(json as Map<String, dynamic>),
+      final response = await _dio.post('/trips', data: data);
+      debugPrint('[ApiService] Create trip response: ${response.statusCode}');
+      return ApiResponse<Trip>(
+        success: response.data['success'],
+        data: Trip.fromJson(response.data['data']),
       );
     } on DioException catch (e) {
+      debugPrint('[ApiService] Create trip DioException: ${e.message}');
       return ApiResponse<Trip>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
       );
+    } catch (e) {
+      debugPrint('[ApiService] Create trip unexpected error: $e');
+      return ApiResponse<Trip>(
+        success: false,
+        error: 'An unexpected error occurred',
+      );
     }
   }
 
-  Future<ApiResponse<List<Trip>>> getTrips({String? status}) async {
+  Future<ApiResponse<List<Trip>>> getUserTrips() async {
     try {
-      final queryParams = <String, dynamic>{};
-      if (status != null) {
-        queryParams['status'] = status;
+      debugPrint('[ApiService] Getting user trips');
+      final response = await _dio.get('/trips');
+      debugPrint(
+          '[ApiService] Get user trips response: ${response.statusCode}');
+
+      if (response.data['success'] && response.data['data'] != null) {
+        final data = response.data['data'];
+        final trips = (data['items'] as List<dynamic>)
+            .map((trip) => Trip.fromJson(trip))
+            .toList();
+
+        debugPrint('[ApiService] Found ${trips.length} user trips');
+        return ApiResponse<List<Trip>>(
+          success: true,
+          data: trips,
+        );
+      } else {
+        debugPrint(
+            '[ApiService] Get user trips failed: ${response.data['error']}');
+        return ApiResponse<List<Trip>>(
+          success: false,
+          error: response.data['error'] ?? 'Failed to get user trips',
+        );
       }
-
-      final response = await _dio.get('/trips', queryParameters: queryParams);
-
-      final trips = (response.data['data'] as List)
-          .map((json) => Trip.fromJson(json))
-          .toList();
-
-      return ApiResponse<List<Trip>>(
-        success: response.data['success'],
-        data: trips,
-      );
     } on DioException catch (e) {
+      debugPrint('[ApiService] Get user trips DioException: ${e.message}');
       return ApiResponse<List<Trip>>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      debugPrint('[ApiService] Get user trips unexpected error: $e');
+      return ApiResponse<List<Trip>>(
+        success: false,
+        error: 'An unexpected error occurred',
       );
     }
   }
 
   Future<ApiResponse<Trip>> getTrip(String tripId) async {
     try {
+      debugPrint('[ApiService] Getting trip: $tripId');
       final response = await _dio.get('/trips/$tripId');
-
-      return ApiResponse<Trip>.fromJson(
-        response.data,
-        (json) => Trip.fromJson(json as Map<String, dynamic>),
+      debugPrint('[ApiService] Get trip response: ${response.statusCode}');
+      return ApiResponse<Trip>(
+        success: response.data['success'],
+        data: Trip.fromJson(response.data['data']),
       );
     } on DioException catch (e) {
+      debugPrint('[ApiService] Get trip DioException: ${e.message}');
       return ApiResponse<Trip>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
       );
+    } catch (e) {
+      debugPrint('[ApiService] Get trip unexpected error: $e');
+      return ApiResponse<Trip>(
+        success: false,
+        error: 'An unexpected error occurred',
+      );
     }
   }
 
-  Future<ApiResponse<Trip?>> getCurrentTrip() async {
+  Future<ApiResponse<void>> endTrip(String tripId) async {
     try {
-      final response = await _dio.get('/trips/status');
+      debugPrint('[ApiService] Ending trip: $tripId');
+      final response = await _dio.post('/trips/$tripId/end');
+      debugPrint('[ApiService] End trip response: ${response.statusCode}');
+      return ApiResponse<void>(
+        success: response.data['success'],
+      );
+    } on DioException catch (e) {
+      debugPrint('[ApiService] End trip DioException: ${e.message}');
+      return ApiResponse<void>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      debugPrint('[ApiService] End trip unexpected error: $e');
+      return ApiResponse<void>(
+        success: false,
+        error: 'An unexpected error occurred',
+      );
+    }
+  }
 
-      if (response.data['data'] == null) {
-        return ApiResponse<Trip?>(
-          success: true,
-          data: null,
-          message: response.data['message'],
+  Future<ApiResponse<void>> publishFinalPost(String tripId) async {
+    try {
+      debugPrint('[ApiService] Publishing final post for trip: $tripId');
+      final response = await _dio.post('/trips/$tripId/publish');
+      debugPrint(
+          '[ApiService] Publish final post response: ${response.statusCode}');
+      return ApiResponse<void>(
+        success: response.data['success'],
+      );
+    } on DioException catch (e) {
+      debugPrint('[ApiService] Publish final post DioException: ${e.message}');
+      return ApiResponse<void>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      debugPrint('[ApiService] Publish final post unexpected error: $e');
+      return ApiResponse<void>(
+        success: false,
+        error: 'An unexpected error occurred',
+      );
+    }
+  }
+
+  Future<ApiResponse<List<TripThreadEntry>>> getTripEntries(
+      String tripId) async {
+    try {
+      debugPrint('[ApiService] Getting trip entries for trip: $tripId');
+      final response = await _dio.get('/trips/$tripId/entries');
+      debugPrint(
+          '[ApiService] Get trip entries response: ${response.statusCode}');
+
+      if (response.data['success'] && response.data['data'] != null) {
+        final data = response.data['data'];
+        final entries = (data['items'] as List<dynamic>)
+            .map((json) => TripThreadEntry.fromJson(json))
+            .toList();
+
+        debugPrint('[ApiService] Found ${entries.length} trip entries');
+        return ApiResponse<List<TripThreadEntry>>(
+          success: response.data['success'],
+          data: entries,
+        );
+      } else {
+        debugPrint(
+            '[ApiService] Get trip entries failed: ${response.data['error']}');
+        return ApiResponse<List<TripThreadEntry>>(
+          success: false,
+          error: response.data['error'] ?? 'Failed to get trip entries',
         );
       }
-
-      return ApiResponse<Trip?>.fromJson(
-        response.data,
-        (json) => json != null ? Trip.fromJson(json as Map<String, dynamic>) : null,
-      );
     } on DioException catch (e) {
-      return ApiResponse<Trip?>(
-        success: false,
-        error: e.response?.data['error'] ?? 'Network error occurred',
-      );
-    }
-  }
-
-  Future<ApiResponse<Trip>> endTrip(String tripId) async {
-    try {
-      final response = await _dio.post('/trips/$tripId/end');
-
-      return ApiResponse<Trip>.fromJson(
-        response.data,
-        (json) => Trip.fromJson(json as Map<String, dynamic>),
-      );
-    } on DioException catch (e) {
-      return ApiResponse<Trip>(
-        success: false,
-        error: e.response?.data['error'] ?? 'Network error occurred',
-      );
-    }
-  }
-
-  // Thread entries
-  Future<ApiResponse<TripThreadEntry>> createThreadEntry(
-    String tripId,
-    CreateThreadEntryRequest request,
-  ) async {
-    try {
-      final response = await _dio.post('/trips/$tripId/entries', data: request.toJson());
-
-      return ApiResponse<TripThreadEntry>.fromJson(
-        response.data,
-        (json) => TripThreadEntry.fromJson(json as Map<String, dynamic>),
-      );
-    } on DioException catch (e) {
-      return ApiResponse<TripThreadEntry>(
-        success: false,
-        error: e.response?.data['error'] ?? 'Network error occurred',
-      );
-    }
-  }
-
-  Future<ApiResponse<List<TripThreadEntry>>> getThreadEntries(String tripId) async {
-    try {
-      final response = await _dio.get('/trips/$tripId/entries');
-
-      final entries = (response.data['data'] as List)
-          .map((json) => TripThreadEntry.fromJson(json))
-          .toList();
-
+      debugPrint('[ApiService] Get trip entries DioException: ${e.message}');
       return ApiResponse<List<TripThreadEntry>>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      debugPrint('[ApiService] Get trip entries unexpected error: $e');
+      return ApiResponse<List<TripThreadEntry>>(
+        success: false,
+        error: 'An unexpected error occurred',
+      );
+    }
+  }
+
+  // Feed endpoints
+  Future<ApiResponse<Map<String, dynamic>>> getHomeFeed({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      debugPrint('[ApiService] Getting home feed: page=$page, limit=$limit');
+      final response = await _dio.get('/feed/home', queryParameters: {
+        'page': page.toString(),
+        'limit': limit.toString(),
+      });
+
+      debugPrint('[ApiService] Get home feed response: ${response.statusCode}');
+      debugPrint('[ApiService] Home feed response data: ${response.data}');
+
+      return ApiResponse<Map<String, dynamic>>(
         success: response.data['success'],
-        data: entries,
+        data: response.data['data'],
       );
     } on DioException catch (e) {
-      return ApiResponse<List<TripThreadEntry>>(
+      debugPrint('[ApiService] Get home feed DioException: ${e.message}');
+      return ApiResponse<Map<String, dynamic>>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
       );
+    } catch (e) {
+      debugPrint('[ApiService] Get home feed unexpected error: $e');
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        error: 'An unexpected error occurred',
+      );
     }
   }
+
+  Future<ApiResponse<Map<String, dynamic>>> getDiscoverTrips({
+    int page = 1,
+    int limit = 20,
+    String? status,
+    String? mood,
+  }) async {
+    try {
+      debugPrint(
+          '[ApiService] Getting discover trips: page=$page, limit=$limit, status=$status, mood=$mood');
+      final queryParams = <String, dynamic>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+
+      if (status != null) queryParams['status'] = status;
+      if (mood != null) queryParams['mood'] = mood;
+
+      final response =
+          await _dio.get('/discover/trips', queryParameters: queryParams);
+
+      debugPrint(
+          '[ApiService] Get discover trips response: ${response.statusCode}');
+      debugPrint('[ApiService] Discover trips response data: ${response.data}');
+
+      return ApiResponse<Map<String, dynamic>>(
+        success: response.data['success'],
+        data: response.data['data'],
+      );
+    } on DioException catch (e) {
+      debugPrint('[ApiService] Get discover trips DioException: ${e.message}');
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        error: e.response?.data['error'] ?? 'Network error occurred',
+      );
+    } catch (e) {
+      debugPrint('[ApiService] Get discover trips unexpected error: $e');
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        error: 'An unexpected error occurred',
+      );
+    }
+  }
+
   // Add this method for manual refresh
   Future<ApiResponse<Map<String, dynamic>>> refreshAccessToken(
       String refreshToken) async {
     try {
+      debugPrint('[ApiService] Refreshing access token');
       final response = await _dio.post('/auth/refresh-token', data: {
         'refreshToken': refreshToken,
       });
       if (response.statusCode == 200 && response.data['success'] == true) {
+        debugPrint('[ApiService] Token refresh successful');
         return ApiResponse<Map<String, dynamic>>(
           success: true,
           data: Map<String, dynamic>.from(response.data['data']),
         );
       } else {
+        debugPrint('[ApiService] Token refresh failed: ${response.data}');
         return ApiResponse<Map<String, dynamic>>(
           success: false,
           error: response.data['error'] ?? 'Failed to refresh token',
         );
       }
     } on DioException catch (e) {
+      debugPrint('[ApiService] Token refresh DioException: ${e.message}');
       return ApiResponse<Map<String, dynamic>>(
         success: false,
         error: e.response?.data['error'] ?? 'Network error occurred',
       );
     } catch (e) {
+      debugPrint('[ApiService] Token refresh unexpected error: $e');
       return ApiResponse<Map<String, dynamic>>(
         success: false,
         error: 'Unknown error occurred',

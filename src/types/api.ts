@@ -64,7 +64,14 @@ export interface TripResponse {
   startDate?: string | null;
   endDate?: string | null;
   destinations: string[];
-  mood?: "RELAXED" | "ADVENTURE" | "SPIRITUAL" | "CULTURAL" | "PARTY" | "MIXED" | null;
+  mood?:
+    | "RELAXED"
+    | "ADVENTURE"
+    | "SPIRITUAL"
+    | "CULTURAL"
+    | "PARTY"
+    | "MIXED"
+    | null;
   type?: "SOLO" | "GROUP" | "COUPLE" | "FAMILY" | null;
   coverMediaUrl?: string | null;
   status: "UPCOMING" | "ONGOING" | "ENDED";
@@ -113,6 +120,7 @@ export interface TripFinalPostResponse {
   caption?: string | null;
   isPublished: boolean;
   createdAt: string;
+  trip?: TripResponse | null;
 }
 
 export interface MediaResponse {
@@ -133,7 +141,14 @@ export interface CreateTripRequest {
   startDate?: string | null;
   endDate?: string | null;
   destinations: string[];
-  mood?: "RELAXED" | "ADVENTURE" | "SPIRITUAL" | "CULTURAL" | "PARTY" | "MIXED" | null;
+  mood?:
+    | "RELAXED"
+    | "ADVENTURE"
+    | "SPIRITUAL"
+    | "CULTURAL"
+    | "PARTY"
+    | "MIXED"
+    | null;
   type?: "SOLO" | "GROUP" | "COUPLE" | "FAMILY" | null;
   coverMediaUrl?: string | null;
 }

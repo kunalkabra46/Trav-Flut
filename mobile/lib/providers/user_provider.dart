@@ -36,7 +36,7 @@ class UserProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      final response = await _apiService.getUser(userId);
+      final response = await _apiService.getCurrentUser();
 
       if (response.success && response.data != null) {
         _userCache[userId] = response.data!;
@@ -60,17 +60,9 @@ class UserProvider extends ChangeNotifier {
 
   Future<UserStats?> fetchUserStats(String userId) async {
     try {
-      final response = await _apiService.getUserStats(userId);
-
-      if (response.success && response.data != null) {
-        _statsCache[userId] = response.data!;
-        notifyListeners();
-        return response.data;
-      } else {
-        _error = response.error ?? 'Failed to fetch user stats';
-        notifyListeners();
-        return null;
-      }
+      // TODO: Implement getUserStats when backend supports it
+      debugPrint('fetchUserStats not implemented yet');
+      return null;
     } catch (e) {
       _error = 'An unexpected error occurred';
       notifyListeners();
@@ -93,12 +85,10 @@ class UserProvider extends ChangeNotifier {
       notifyListeners();
 
       final response = await _apiService.updateProfile(
-        userId: userId,
         name: name,
         username: username,
         bio: bio,
         avatarUrl: avatarUrl,
-        isPrivate: isPrivate,
       );
 
       if (response.success && response.data != null) {
@@ -123,17 +113,9 @@ class UserProvider extends ChangeNotifier {
 
   Future<bool> togglePrivacy(String userId) async {
     try {
-      final response = await _apiService.togglePrivacy(userId);
-
-      if (response.success && response.data != null) {
-        _userCache[userId] = response.data!;
-        notifyListeners();
-        return true;
-      } else {
-        _error = response.error ?? 'Failed to toggle privacy';
-        notifyListeners();
-        return false;
-      }
+      // TODO: Implement togglePrivacy when backend supports it
+      debugPrint('togglePrivacy not implemented yet');
+      return false;
     } catch (e) {
       _error = 'An unexpected error occurred';
       notifyListeners();
@@ -144,17 +126,9 @@ class UserProvider extends ChangeNotifier {
 
   Future<bool> fetchFollowStatus(String userId) async {
     try {
-      final response = await _apiService.getFollowStatus(userId);
-
-      if (response.success) {
-        _followStatusCache[userId] = response.data ?? false;
-        notifyListeners();
-        return response.data ?? false;
-      } else {
-        _followStatusCache[userId] = false;
-        notifyListeners();
-        return false;
-      }
+      // TODO: Implement getFollowStatus when backend supports it
+      debugPrint('fetchFollowStatus not implemented yet');
+      return false;
     } catch (e) {
       _followStatusCache[userId] = false;
       notifyListeners();
@@ -184,9 +158,9 @@ class UserProvider extends ChangeNotifier {
       );
 
       if (response.success && response.data != null) {
-        final data = response.data!;
-        final users = data['items'] as List<dynamic>;
-        final hasNext = data['hasNext'] as bool;
+        final users = response.data!;
+        final hasNext =
+            false; // TODO: Implement pagination when backend supports it
 
         if (refresh) {
           _discoverUsers.clear();
