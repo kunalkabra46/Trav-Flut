@@ -66,7 +66,7 @@ export async function GET(
       prisma.followRequest.findFirst({
         where: {
           followerId,
-          followingId: followeeId,
+          followeeId: followeeId,
           status: "PENDING",
         },
       }),
@@ -195,7 +195,7 @@ export async function POST(
       const existingRequest = await tx.followRequest.findFirst({
         where: {
           followerId,
-          followingId: followeeId,
+          followeeId: followeeId,
           status: "PENDING",
         },
       });
@@ -219,7 +219,7 @@ export async function POST(
         const request = await tx.followRequest.create({
           data: {
             followerId,
-            followingId: followeeId,
+            followeeId: followeeId,
             status: "PENDING",
           },
         });
@@ -314,7 +314,7 @@ export async function DELETE(
       await tx.followRequest.deleteMany({
         where: {
           followerId,
-          followingId: followeeId,
+          followeeId: followeeId,
           status: "PENDING",
         },
       });

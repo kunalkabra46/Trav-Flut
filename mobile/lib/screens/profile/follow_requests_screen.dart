@@ -125,7 +125,6 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      userProvider.clearFollowRequestsError();
                       userProvider.loadPendingFollowRequests();
                     },
                     child: const Text('Retry'),
@@ -274,7 +273,7 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: userProvider.isLoading
+                      onPressed: userProvider.isProcessingRequestId == request.id
                           ? null
                           : () => _handleRejectRequest(
                                 request.id,
@@ -284,7 +283,7 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
                         foregroundColor: Colors.red,
                         side: BorderSide(color: Colors.red[300]!),
                       ),
-                      child: userProvider.isLoading
+                      child: userProvider.isProcessingRequestId == request.id
                           ? const SizedBox(
                               height: 16,
                               width: 16,
@@ -296,13 +295,13 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: userProvider.isLoading
+                      onPressed: userProvider.isProcessingRequestId == request.id
                           ? null
                           : () => _handleAcceptRequest(
                                 request.id,
                                 follower.name ?? 'User',
                               ),
-                      child: userProvider.isLoading
+                      child: userProvider.isProcessingRequestId == request.id
                           ? const SizedBox(
                               height: 16,
                               width: 16,

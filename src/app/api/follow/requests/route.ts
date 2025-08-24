@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
           const existingRequest = await prisma.followRequest.findFirst({
             where: {
               followerId,
-              followingId: followeeId,
+              followeeId: followeeId,
               status: "PENDING",
             },
           });
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
           const followRequest = await prisma.followRequest.create({
             data: {
               followerId,
-              followingId: followeeId,
+              followeeId: followeeId,
               status: "PENDING",
             },
           });
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
 
           const followRequests = await prisma.followRequest.findMany({
             where: {
-              followingId: userId,
+              followeeId: userId,
               status: "PENDING",
             },
             include: {
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
           const transformedRequests = followRequests.map(request => ({
             id: request.id,
             followerId: request.followerId,
-            followeeId: request.followingId,
+            followeeId: request.followeeId,
             status: request.status,
             createdAt: request.createdAt.toISOString(),
             updatedAt: request.updatedAt.toISOString(),
