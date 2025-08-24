@@ -32,7 +32,7 @@ export async function PUT(
           }
 
           // Verify that current user is the target of the request
-          if (followRequest.followeeId !== currentUserId) {
+          if (followRequest.followingId !== currentUserId) {
             return NextResponse.json<ApiResponse>(
               {
                 success: false,

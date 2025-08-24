@@ -21,351 +21,191 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfileData();
+    // Use addPostFrameCallback to ensure providers are available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialData();
+    });
   }
 
-  Future<void> _loadProfileData() async {
-    if (!mounted) return;
-    
-    final userProvider = context.read<UserProvider>();
+  // A single, reliable method to load all necessary data for the screen.
+  void _loadInitialData() {
     final authProvider = context.read<AuthProvider>();
-    final isOwnProfile = authProvider.currentUser?.id == widget.userId;
-    
-    debugPrint('[ProfileScreen] Loading profile data for userId: ${widget.userId}');
-    debugPrint('[ProfileScreen] Current user: ${authProvider.currentUser?.id}');
-    debugPrint('[ProfileScreen] isOwnProfile: $isOwnProfile');
-    
-    try {
-      // Load profile data in parallel
-      await Future.wait([
-        userProvider.fetchUser(widget.userId),
-        userProvider.fetchUserStats(widget.userId),
-        userProvider.fetchDetailedFollowStatus(widget.userId),
-      ]);
-
-      // Always load pending follow requests for current user's profile
-      if (authProvider.currentUser?.id == widget.userId) {
-        debugPrint('[ProfileScreen] Loading pending follow requests for current user');
-        await userProvider.loadPendingFollowRequests();
-        debugPrint('[ProfileScreen] Loaded ${userProvider.pendingFollowRequests.length} pending requests');
-      }
-    } catch (e) {
-      debugPrint('Error loading profile data: $e');
+    if (authProvider.currentUser != null) {
+      context
+          .read<UserProvider>()
+          .loadProfileData(widget.userId, authProvider.currentUser!.id);
     }
   }
 
+  // The refresh action now uses the same centralized method.
+  Future<void> _refreshProfile() async {
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.currentUser != null) {
+      await context
+          .read<UserProvider>()
+          .loadProfileData(widget.userId, authProvider.currentUser!.id);
+    }
+  }
+
+  // The toggle logic is simplified to just call the provider.
+  // The provider is now responsible for updating the state and notifying the UI.
   Future<void> _handleFollowToggle() async {
-    if (!mounted) return;
-
     final userProvider = context.read<UserProvider>();
+    final detailedStatus = userProvider.getDetailedFollowStatus(widget.userId);
     final authProvider = context.read<AuthProvider>();
 
-    // Fetch latest follow status first
-    final detailedStatus = await userProvider.fetchDetailedFollowStatus(widget.userId);
-    final isCurrentlyFollowing = detailedStatus?.isFollowing ?? false;
-    final isRequestPending = detailedStatus?.isRequestPending ?? false;
-    final isPrivate = detailedStatus?.isPrivate ?? false;
-
-    debugPrint('Follow toggle - Current state: following=$isCurrentlyFollowing, pending=$isRequestPending, private=$isPrivate');
-
-    if (!mounted) return;
-
-    final currentUser = authProvider.currentUser;
-    if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please login to follow users'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    if (detailedStatus == null || authProvider.currentUser == null) return;
 
     bool success = false;
-    
-    if (isCurrentlyFollowing) {
-      // Unfollow user
-      debugPrint('Attempting to unfollow user');
-      success = await userProvider.unfollowUser(widget.userId, currentUserId: currentUser.id);
-    } else if (isRequestPending) {
-      // Cancel follow request
-      debugPrint('Attempting to cancel follow request');
+    if (detailedStatus.isFollowing) {
+      success = await userProvider.unfollowUser(widget.userId,
+          currentUserId: authProvider.currentUser!.id);
+    } else if (detailedStatus.isRequestPending) {
       success = await userProvider.cancelFollowRequest(widget.userId);
     } else {
-      // Send follow request or follow directly
-      if (isPrivate) {
-        debugPrint('Attempting to send follow request to private user');
-        success = await userProvider.sendFollowRequest(widget.userId);
-      } else {
-        debugPrint('Attempting to follow public user');
-        success = await userProvider.followUser(widget.userId, currentUserId: currentUser.id);
-      }
+      success = await userProvider.sendFollowRequest(widget.userId);
     }
 
     if (!mounted) return;
-
-    if (success) {
-      debugPrint('Action successful, refreshing profile data');
-      
-      // Refresh both follow status and stats
-      await Future.wait([
-        userProvider.fetchDetailedFollowStatus(widget.userId),
-        userProvider.fetchUserStats(widget.userId),
-        userProvider.fetchUserStats(currentUser.id),
-      ]);
-      
-      if (!mounted) return;
-
-      String message;
-      if (isCurrentlyFollowing) {
-        message = 'Unfollowed successfully';
-      } else if (isRequestPending) {
-        message = 'Follow request cancelled';
-      } else if (isPrivate) {
-        message = 'Follow request sent';
-      } else {
-        message = 'Following successfully';
-      }
-
+    if (!success && userProvider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.green,
-        ),
-      );
-      
-      // Force a rebuild to update the UI
-      setState(() {});
-    } else {
-      debugPrint('Action failed: ${userProvider.error}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(userProvider.error ?? 'Failed to update follow status'),
+          content: Text(userProvider.error!),
           backgroundColor: Colors.red,
         ),
       );
-    }
-  }
-
-  Future<void> _refreshProfile() async {
-    if (!mounted) return;
-    final userProvider = context.read<UserProvider>();
-    final authProvider = context.read<AuthProvider>();
-    
-    // Clear any previous errors
-    userProvider.clearError();
-
-    try {
-      // Load profile data in parallel
-      await Future.wait([
-        userProvider.fetchUser(widget.userId),
-        userProvider.fetchUserStats(widget.userId),
-        // Always fetch detailed follow status to show correct button states
-        userProvider.fetchDetailedFollowStatus(widget.userId),
-      ]);
-
-      if (!mounted) return;
-
-      // Load follow requests if it's the current user's profile
-      if (authProvider.currentUser?.id == widget.userId) {
-        await userProvider.loadPendingFollowRequests();
-      }
-    } catch (e) {
-      debugPrint('Error refreshing profile data: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[ProfileScreen] Building profile screen for userId: ${widget.userId}');
+    debugPrint(
+    '[ProfileScreen] Build method called for userId: ${widget.userId}');
+
+    // Consumer2 listens to both Auth and User providers for state changes.
     return Consumer2<AuthProvider, UserProvider>(
       builder: (context, authProvider, userProvider, child) {
         final currentUser = authProvider.currentUser;
         final user = userProvider.getUser(widget.userId);
         final stats = userProvider.getUserStats(widget.userId);
+        final detailedStatus =
+            userProvider.getDetailedFollowStatus(widget.userId);
         final isOwnProfile = currentUser?.id == widget.userId;
         
-        // Ensure follow requests are loaded for own profile
-        if (isOwnProfile && !userProvider.isFollowRequestsLoading) {
-          debugPrint('[ProfileScreen] Loading follow requests for own profile');
-          userProvider.loadPendingFollowRequests();
-        }
-        
-        final pendingRequests = isOwnProfile ? userProvider.pendingFollowRequests : [];
-        
-        debugPrint('[ProfileScreen] isOwnProfile: $isOwnProfile (currentUserId: ${currentUser?.id})');
-        debugPrint('[ProfileScreen] pendingRequests: ${pendingRequests.length}');
-
-        if (userProvider.isLoading) {
+        // Display a loading indicator only if the main user data is not yet available.
+        if (userProvider.isLoading && user == null) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
+        debugPrint('[ProfileScreen] Build - currentUserId: ${currentUser?.id}');
+        debugPrint('[ProfileScreen] Build - widget.userId: ${widget.userId}');
+        debugPrint('[ProfileScreen] Build - isOwnProfile: $isOwnProfile');
+        debugPrint(
+            '[ProfileScreen] Build - currentUser exists: ${currentUser != null}');
+
+        // Handle the case where the user could not be found.
         if (user == null) {
           return Scaffold(
-            appBar: AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
-            body: const Center(
-              child: Text('User not found'),
+            appBar: AppBar(),
+            body: Center(
+              child: Text(userProvider.error ?? 'User not found.'),
             ),
           );
         }
 
+        debugPrint('[ProfileScreen] isOwnProfile: $isOwnProfile (currentUserId: ${currentUser?.id})');
+        // debugPrint('[ProfileScreen] pendingRequests: ${}');
+
         return Scaffold(
           appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
             title: Text(user.username ?? 'Profile'),
-            actions: [
-              // Follow requests button for own profile
-              if (isOwnProfile) 
-                Stack(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.person_add),
-                      tooltip: 'Follow Requests',
-                      onPressed: () {
-                        debugPrint('[ProfileScreen] Opening follow requests');
-                        context.push('/follow-requests');
-                      },
-                    ),
-                    if (pendingRequests.isNotEmpty)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.error,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.surface,
-                              width: 1.5,
-                            ),
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            pendingRequests.length.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              // Settings button
-              if (isOwnProfile)
-                IconButton(
-                  icon: const Icon(Icons.settings),
-                  tooltip: 'Settings',
-                  onPressed: () => context.push('/settings'),
-                ),
-              // Debug button with better visibility
-              if (isOwnProfile)
-                IconButton(
-                  icon: const Icon(Icons.bug_report),
-                  tooltip: 'Debug Info',
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.orange.withOpacity(0.2),
-                  ),
-                  color: Colors.orange,
-                  onPressed: () {
-                    debugPrint('[ProfileScreen] Debug button pressed');
-                    debugPrint('[ProfileScreen] Current user: ${currentUser?.username}');
-                    debugPrint('[ProfileScreen] Profile user: ${user.username}');
-                    debugPrint('[ProfileScreen] Pending requests: ${pendingRequests.length}');
-                    debugPrint('[ProfileScreen] isOwnProfile: $isOwnProfile');
-                  },
-                ),
-            ],
+            actions: _buildAppBarActions(
+              context,
+              isOwnProfile,
+              userProvider.pendingFollowRequests, // Data comes directly from the provider.
+            ),
           ),
+
           body: RefreshIndicator(
             onRefresh: _refreshProfile,
-            color: Theme.of(context).colorScheme.primary,
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            strokeWidth: 3,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Show error banner if there's an error
-                  if (userProvider.error != null)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.error.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            color: Theme.of(context).colorScheme.error,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              userProvider.error!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              userProvider.clearError();
-                              _refreshProfile();
-                            },
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // Profile Header
                   _buildProfileHeader(
                     context,
                     user,
                     stats,
                     isOwnProfile,
-                    userProvider.getDetailedFollowStatus(widget.userId)?.isFollowing ?? false,
-                    userProvider.getDetailedFollowStatus(widget.userId)?.isRequestPending ?? false,
-                    userProvider.isLoading,
+                    detailedStatus?.isFollowing ?? false,
+                    detailedStatus?.isRequestPending ?? false,
+                    userProvider.isLoading, // Pass loading state for the button.
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Trips Section
                   _buildTripsSection(context, user, isOwnProfile),
                 ],
               ),
             ),
-          ),
+          )
         );
       },
     );
+  }
+
+  List<Widget> _buildAppBarActions(
+    BuildContext context,
+    bool isOwnProfile,
+    List<dynamic> pendingRequests,
+  ) {
+    // The logic is now simple: if it's not your own profile, show nothing.
+    if (!isOwnProfile) {
+      return [];
+    }
+    // Otherwise, build the action buttons.
+    return [
+      Stack(
+        alignment: Alignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.person_add_outlined),
+            tooltip: 'Follow Requests',
+            onPressed: () => context.push('/follow-requests'),
+          ),
+          if (pendingRequests.isNotEmpty)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 14,
+                  minHeight: 14,
+                ),
+                child: Text(
+                  '${pendingRequests.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+      IconButton(
+        icon: const Icon(Icons.settings_outlined),
+        tooltip: 'Settings',
+        onPressed: () => context.push('/settings'),
+      ),
+    ];
   }
 
   Widget _buildProfileHeader(
