@@ -117,32 +117,45 @@ class _DiscoverTabState extends State<DiscoverTab> {
     final currentUserId = authProvider.currentUser?.id;
 
     try {
+      bool success;
       if (isCurrentlyFollowing) {
-        await userProvider.unfollowUser(userId, currentUserId: currentUserId);
+        success = await userProvider.unfollowUser(userId, currentUserId: currentUserId);
       } else {
-        await userProvider.followUser(userId, currentUserId: currentUserId);
+        success = await userProvider.followUser(userId, currentUserId: currentUserId);
       }
 
-      // Update local state optimistically
-      userProvider.updateFollowStatus(userId, !isCurrentlyFollowing);
+      if (!mounted) return;
 
-      // Refresh the discover list to get updated follow statuses
-      userProvider.searchUsers(
-        search: _searchController.text.isEmpty ? null : _searchController.text,
-        refresh: true,
-      );
-    } catch (e) {
-      // Revert optimistic update on error
-      userProvider.updateFollowStatus(userId, isCurrentlyFollowing);
-      if (mounted) {
+      if (success) {
+        // Only update local state if the action was successful
+        final status = userProvider.getDetailedFollowStatus(userId);
+        if (status != null) {
+          final newState = status.isRequestPending 
+            ? 'requested to follow'
+            : (status.isFollowing ? 'following' : 'not following');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully ${newState} user'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else if (userProvider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Failed to ${isCurrentlyFollowing ? 'unfollow' : 'follow'} user'),
+            content: Text(userProvider.error!),
             backgroundColor: Colors.red,
           ),
         );
       }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to ${isCurrentlyFollowing ? 'unfollow' : 'follow'} user'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -659,6 +672,7 @@ class _DiscoverTabState extends State<DiscoverTab> {
     final bio = user['bio'];
     final avatarUrl = user['avatarUrl'];
     final isPrivate = user['isPrivate'] ?? false;
+    final userId = user['id'] as String;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -666,138 +680,84 @@ class _DiscoverTabState extends State<DiscoverTab> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            // Avatar
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.grey[200],
+      child: InkWell(
+        onTap: () => context.push('/profile/$userId'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Avatar
+              CircleAvatar(
+                radius: 25,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                child: avatarUrl == null
+                    ? Text(
+                        name.substring(0, 1).toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      )
+                    : null,
               ),
-              child: avatarUrl != null
-                  ? ClipOval(
-                      child: Image.network(
-                        avatarUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.person,
-                            size: 30,
-                            color: Colors.grey[600],
-                          );
-                        },
-                      ),
-                    )
-                  : Icon(
-                      Icons.person,
-                      size: 30,
-                      color: Colors.grey[600],
-                    ),
-            ),
 
-            const SizedBox(width: 16),
+              const SizedBox(width: 16),
 
-            // User Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          name,
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (isPrivate)
-                        Icon(
-                          Icons.lock,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '@$username',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
-                        ),
-                  ),
-                  if (bio != null && bio.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+              // User Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      bio,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      name,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
-                  ],
-                  if (isFollowedBy) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue[200]!),
-                      ),
-                      child: Text(
-                        'Follows you',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                    Text(
+                      '@$username',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[600],
+                          ),
                     ),
+                    if (bio != null && bio.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        bio,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 16),
-
-            // Follow Button
-            SizedBox(
-              width: 100,
-              child: ElevatedButton(
-                onPressed: () => _toggleFollow(user['id'], isFollowing),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isFollowing
-                      ? Colors.grey[200]
-                      : Theme.of(context).colorScheme.primary,
-                  foregroundColor:
-                      isFollowing ? Colors.grey[700] : Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                ),
-                child: Text(
-                  isFollowing ? 'Following' : 'Follow',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
                 ),
               ),
-            ),
-          ],
+
+              const SizedBox(width: 16),
+
+              // Follow Button
+              SizedBox(
+                width: 100,
+                child: ElevatedButton(
+                  onPressed: () => _toggleFollow(userId, isFollowing),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isFollowing
+                        ? Theme.of(context).colorScheme.error
+                        : Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: Text(isFollowing ? 'Unfollow' : 'Follow'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

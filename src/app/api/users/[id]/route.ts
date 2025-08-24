@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { AuthService } from '@/lib/auth'
-import { updateProfileSchema } from '@/lib/validation'
-import { ApiResponse, UserProfile, UserStats } from '@/types/api'
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { AuthService } from "@/lib/auth";
+import { updateProfileSchema } from "@/lib/validation";
+import { ApiResponse, UserProfile, UserStats } from "@/types/api";
 
 // Get user profile
 export async function GET(
@@ -10,16 +10,16 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = params.id
-    
+    const userId = params.id;
+
     // Get current user from token (optional)
-    const authHeader = request.headers.get('authorization')
-    let currentUserId: string | null = null
-    
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
-      const payload = AuthService.verifyAccessToken(token)
-      currentUserId = payload?.userId || null
+    const authHeader = request.headers.get("authorization");
+    let currentUserId: string | null = null;
+
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      const payload = AuthService.verifyAccessToken(token);
+      currentUserId = payload?.userId || null;
     }
 
     // Find user
@@ -34,15 +34,18 @@ export async function GET(
         bio: true,
         isPrivate: true,
         createdAt: true,
-        updatedAt: true
-      }
-    })
+        updatedAt: true,
+      },
+    });
 
     if (!user) {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: 'User not found'
-      }, { status: 404 })
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: "User not found",
+        },
+        { status: 404 }
+      );
     }
 
     // Check privacy settings
@@ -53,56 +56,70 @@ export async function GET(
           where: {
             followerId_followeeId: {
               followerId: currentUserId,
-              followeeId: userId
-            }
-          }
-        })
+              followeeId: userId,
+            },
+          },
+        });
 
         if (!followRelation) {
           // Return limited profile for private users
           const limitedProfile: UserProfile = {
             id: user.id,
-            email: '',
+            email: "", // Hide email for privacy
             username: user.username,
             name: user.name,
             avatarUrl: user.avatarUrl,
-            bio: undefined,
+            bio: undefined, // Hide bio for privacy
             isPrivate: user.isPrivate,
             createdAt: user.createdAt.toISOString(),
-            updatedAt: user.updatedAt.toISOString()
-          }
+            updatedAt: user.updatedAt.toISOString(),
+          };
 
-          return NextResponse.json<ApiResponse<UserProfile>>({
+          return NextResponse.json<
+            ApiResponse<UserProfile & { message?: string }>
+          >({
             success: true,
-            data: limitedProfile
-          })
+            data: {
+              ...limitedProfile,
+              message: "This profile is private. Follow to see more details.",
+            },
+          });
         }
       } else {
-        return NextResponse.json<ApiResponse>({
-          success: false,
-          error: 'This profile is private'
-        }, { status: 403 })
+        return NextResponse.json<ApiResponse>(
+          {
+            success: false,
+            error: "This profile is private",
+          },
+          { status: 403 }
+        );
       }
     }
 
     const userProfile: UserProfile = {
       ...user,
+      username: user.username ?? undefined,
+      name: user.name ?? undefined,
+      avatarUrl: user.avatarUrl ?? undefined,
+      bio: user.bio ?? undefined,
       createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString()
-    }
+      updatedAt: user.updatedAt.toISOString(),
+    };
 
     return NextResponse.json<ApiResponse<UserProfile>>({
       success: true,
-      data: userProfile
-    })
-
+      data: userProfile,
+    });
   } catch (error: any) {
-    console.error('Get user error:', error)
-    
-    return NextResponse.json<ApiResponse>({
-      success: false,
-      error: 'Internal server error'
-    }, { status: 500 })
+    console.error("Get user error:", error);
+
+    return NextResponse.json<ApiResponse>(
+      {
+        success: false,
+        error: "Internal server error",
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -112,43 +129,52 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = params.id
-    
+    const userId = params.id;
+
     // Verify authentication
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: 'Authorization token required'
-      }, { status: 401 })
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: "Authorization token required",
+        },
+        { status: 401 }
+      );
     }
 
-    const token = authHeader.substring(7)
-    const payload = AuthService.verifyAccessToken(token)
+    const token = authHeader.substring(7);
+    const payload = AuthService.verifyAccessToken(token);
 
     if (!payload || payload.userId !== userId) {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: 'Unauthorized'
-      }, { status: 403 })
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: "Unauthorized",
+        },
+        { status: 403 }
+      );
     }
 
-    const body = await request.json()
-    
+    const body = await request.json();
+
     // Validate input
-    const validatedData = updateProfileSchema.parse(body)
+    const validatedData = updateProfileSchema.parse(body);
 
     // Check username uniqueness if provided
     if (validatedData.username) {
       const existingUser = await prisma.user.findUnique({
-        where: { username: validatedData.username }
-      })
+        where: { username: validatedData.username },
+      });
 
       if (existingUser && existingUser.id !== userId) {
-        return NextResponse.json<ApiResponse>({
-          success: false,
-          error: 'Username is already taken'
-        }, { status: 400 })
+        return NextResponse.json<ApiResponse>(
+          {
+            success: false,
+            error: "Username is already taken",
+          },
+          { status: 400 }
+        );
       }
     }
 
@@ -157,7 +183,7 @@ export async function PUT(
       where: { id: userId },
       data: {
         ...validatedData,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       },
       select: {
         id: true,
@@ -168,34 +194,39 @@ export async function PUT(
         bio: true,
         isPrivate: true,
         createdAt: true,
-        updatedAt: true
-      }
-    })
+        updatedAt: true,
+      },
+    });
 
     const userProfile: UserProfile = {
       ...updatedUser,
       createdAt: updatedUser.createdAt.toISOString(),
-      updatedAt: updatedUser.updatedAt.toISOString()
-    }
+      updatedAt: updatedUser.updatedAt.toISOString(),
+    };
 
     return NextResponse.json<ApiResponse<UserProfile>>({
       success: true,
-      data: userProfile
-    })
-
+      data: userProfile,
+    });
   } catch (error: any) {
-    console.error('Update user error:', error)
-    
-    if (error.name === 'ZodError') {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: error.errors[0]?.message || 'Validation error'
-      }, { status: 400 })
+    console.error("Update user error:", error);
+
+    if (error.name === "ZodError") {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: error.errors[0]?.message || "Validation error",
+        },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json<ApiResponse>({
-      success: false,
-      error: 'Internal server error'
-    }, { status: 500 })
+    return NextResponse.json<ApiResponse>(
+      {
+        success: false,
+        error: "Internal server error",
+      },
+      { status: 500 }
+    );
   }
 }

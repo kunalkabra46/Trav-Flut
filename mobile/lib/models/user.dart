@@ -66,7 +66,8 @@ class UserStats {
     required this.followingCount,
   });
 
-  factory UserStats.fromJson(Map<String, dynamic> json) => _$UserStatsFromJson(json);
+  factory UserStats.fromJson(Map<String, dynamic> json) =>
+      _$UserStatsFromJson(json);
   Map<String, dynamic> toJson() => _$UserStatsToJson(this);
 }
 
@@ -82,6 +83,7 @@ class AuthResponse {
     required this.refreshToken,
   });
 
-  factory AuthResponse.fromJson(Map<String, dynamic> json) => _$AuthResponseFromJson(json);
+  factory AuthResponse.fromJson(Map<String, dynamic> json) =>
+      _$AuthResponseFromJson(json);
   Map<String, dynamic> toJson() => _$AuthResponseToJson(this);
 }

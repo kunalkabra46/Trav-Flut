@@ -84,13 +84,14 @@ export async function PUT(request: NextRequest) {
           console.log(`[API] PUT /users/me - User: ${currentUserId}`);
 
           const body = await request.json();
-          const { name, username, bio, avatarUrl } = body;
+          const { name, username, bio, avatarUrl, isPrivate } = body;
 
           console.log(`[API] PUT /users/me - Update data:`, {
             name,
             username,
             bio,
             avatarUrl,
+            isPrivate,
           });
 
           // Validate input
@@ -152,6 +153,7 @@ export async function PUT(request: NextRequest) {
               ...(username !== undefined && { username }),
               ...(bio !== undefined && { bio }),
               ...(avatarUrl !== undefined && { avatarUrl }),
+              ...(isPrivate !== undefined && { isPrivate }),
             },
             select: {
               id: true,

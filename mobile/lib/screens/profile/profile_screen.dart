@@ -18,180 +18,116 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _isInitialLoad = true;
-
   @override
   void initState() {
     super.initState();
+    // Use addPostFrameCallback to ensure providers are available
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadProfileData();
+      _loadInitialData();
     });
   }
 
-  Future<void> _loadProfileData() async {
-    final userProvider = context.read<UserProvider>();
+  // A single, reliable method to load all necessary data for the screen.
+  void _loadInitialData() {
     final authProvider = context.read<AuthProvider>();
-
-    // Clear any previous errors
-    userProvider.clearError();
-
-    try {
-      // Fetch user profile
-      await userProvider.fetchUser(widget.userId);
-
-      // Fetch user stats
-      await userProvider.fetchUserStats(widget.userId);
-
-      // Fetch follow status (only if not own profile)
-      final currentUser = authProvider.currentUser;
-      if (currentUser != null && currentUser.id != widget.userId) {
-        await userProvider.fetchFollowStatus(widget.userId);
-      }
-    } catch (e) {
-      debugPrint('Error loading profile data: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isInitialLoad = false;
-        });
-      }
+    if (authProvider.currentUser != null) {
+      context
+          .read<UserProvider>()
+          .loadProfileData(widget.userId, authProvider.currentUser!.id);
     }
   }
 
+  // The refresh action now uses the same centralized method.
+  Future<void> _refreshProfile() async {
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.currentUser != null) {
+      await context
+          .read<UserProvider>()
+          .loadProfileData(widget.userId, authProvider.currentUser!.id);
+    }
+  }
+
+  // The toggle logic is simplified to just call the provider.
+  // The provider is now responsible for updating the state and notifying the UI.
   Future<void> _handleFollowToggle() async {
     final userProvider = context.read<UserProvider>();
+    final detailedStatus = userProvider.getDetailedFollowStatus(widget.userId);
     final authProvider = context.read<AuthProvider>();
-    final isCurrentlyFollowing = userProvider.isFollowing(widget.userId);
 
-    final currentUser = authProvider.currentUser;
-    final success = isCurrentlyFollowing
-        ? await userProvider.unfollowUser(widget.userId,
-            currentUserId: currentUser?.id)
-        : await userProvider.followUser(widget.userId,
-            currentUserId: currentUser?.id);
+    if (detailedStatus == null || authProvider.currentUser == null) return;
 
-    if (success && mounted) {
+    bool success = false;
+    if (detailedStatus.isFollowing) {
+      success = await userProvider.unfollowUser(widget.userId,
+          currentUserId: authProvider.currentUser!.id);
+    } else if (detailedStatus.isRequestPending) {
+      success = await userProvider.cancelFollowRequest(widget.userId);
+    } else {
+      success = await userProvider.sendFollowRequest(widget.userId);
+    }
+
+    if (!mounted) return;
+    if (!success && userProvider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isCurrentlyFollowing
-              ? 'Unfollowed successfully'
-              : 'Following successfully'),
-          backgroundColor: Colors.green,
+          content: Text(userProvider.error!),
+          backgroundColor: Colors.red,
         ),
       );
     }
   }
 
-  Future<void> _refreshProfile() async {
-    await _loadProfileData();
-  }
-
   @override
   Widget build(BuildContext context) {
+    debugPrint(
+    '[ProfileScreen] Build method called for userId: ${widget.userId}');
+
+    // Consumer2 listens to both Auth and User providers for state changes.
     return Consumer2<AuthProvider, UserProvider>(
       builder: (context, authProvider, userProvider, child) {
         final currentUser = authProvider.currentUser;
-        final profileUser = userProvider.getUser(widget.userId);
-        final userStats = userProvider.getUserStats(widget.userId);
+        final user = userProvider.getUser(widget.userId);
+        final stats = userProvider.getUserStats(widget.userId);
+        final detailedStatus =
+            userProvider.getDetailedFollowStatus(widget.userId);
         final isOwnProfile = currentUser?.id == widget.userId;
-        final isFollowing = userProvider.isFollowing(widget.userId);
-
-        if (_isInitialLoad && profileUser == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Profile')),
-            body: const Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (userProvider.isLoading && profileUser == null) {
+        
+        // Display a loading indicator only if the main user data is not yet available.
+        if (userProvider.isLoading && user == null) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        if (profileUser == null && !userProvider.isLoading) {
+        debugPrint('[ProfileScreen] Build - currentUserId: ${currentUser?.id}');
+        debugPrint('[ProfileScreen] Build - widget.userId: ${widget.userId}');
+        debugPrint('[ProfileScreen] Build - isOwnProfile: $isOwnProfile');
+        debugPrint(
+            '[ProfileScreen] Build - currentUser exists: ${currentUser != null}');
+
+        // Handle the case where the user could not be found.
+        if (user == null) {
           return Scaffold(
-            appBar: AppBar(
-              title: const Text('Profile'),
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  // Get the 'from' parameter or default to home
-                  final extra = GoRouterState.of(context).extra;
-                  final from = (extra is Map && extra['from'] != null)
-                      ? extra['from'] as String
-                      : '/home';
-                  context.go(from);
-                },
-              ),
-            ),
+            appBar: AppBar(),
             body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.person_off_outlined,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'User not found',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'This profile may have been deleted or doesn\'t exist.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => context.go('/home'),
-                    child: const Text('Go Home'),
-                  ),
-                ],
-              ),
+              child: Text(userProvider.error ?? 'User not found.'),
             ),
           );
         }
 
+        debugPrint('[ProfileScreen] isOwnProfile: $isOwnProfile (currentUserId: ${currentUser?.id})');
+        // debugPrint('[ProfileScreen] pendingRequests: ${}');
+
         return Scaffold(
           appBar: AppBar(
-            title: Text(profileUser?.name ?? 'Profile'),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                // Get the 'from' parameter or default to home
-                final extra = GoRouterState.of(context).extra;
-                final from = (extra is Map && extra['from'] != null)
-                    ? extra['from'] as String
-                    : '/home';
-                context.go(from);
-              },
+            title: Text(user.username ?? 'Profile'),
+            actions: _buildAppBarActions(
+              context,
+              isOwnProfile,
+              userProvider.pendingFollowRequests, // Data comes directly from the provider.
             ),
-            actions: [
-              if (isOwnProfile)
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () {
-                    // Pass current route as 'from' parameter
-                    context.push('/edit-profile',
-                        extra: {'from': '/profile/${widget.userId}'});
-                  },
-                ),
-              if (isOwnProfile)
-                IconButton(
-                  icon: const Icon(Icons.settings_outlined),
-                  onPressed: () {
-                    // TODO: Navigate to settings
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Settings coming soon')),
-                    );
-                  },
-                ),
-            ],
           ),
+
           body: RefreshIndicator(
             onRefresh: _refreshProfile,
             child: SingleChildScrollView(
@@ -199,76 +135,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Show error banner if there's an error
-                  if (userProvider.error != null)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .error
-                            .withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .error
-                              .withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            color: Theme.of(context).colorScheme.error,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              userProvider.error!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              userProvider.clearError();
-                              _refreshProfile();
-                            },
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // Profile Header
-                  if (profileUser != null)
-                    _buildProfileHeader(
-                      context,
-                      profileUser,
-                      userStats,
-                      isOwnProfile,
-                      isFollowing,
-                      userProvider.isLoading,
-                    ),
-
+                  _buildProfileHeader(
+                    context,
+                    user,
+                    stats,
+                    isOwnProfile,
+                    detailedStatus?.isFollowing ?? false,
+                    detailedStatus?.isRequestPending ?? false,
+                    userProvider.isLoading, // Pass loading state for the button.
+                  ),
                   const SizedBox(height: 24),
-
-                  // Trips Section
-                  if (profileUser != null)
-                    _buildTripsSection(context, profileUser, isOwnProfile),
+                  _buildTripsSection(context, user, isOwnProfile),
                 ],
               ),
             ),
-          ),
+          )
         );
       },
     );
+  }
+
+  List<Widget> _buildAppBarActions(
+    BuildContext context,
+    bool isOwnProfile,
+    List<dynamic> pendingRequests,
+  ) {
+    // The logic is now simple: if it's not your own profile, show nothing.
+    if (!isOwnProfile) {
+      return [];
+    }
+    // Otherwise, build the action buttons.
+    return [
+      Stack(
+        alignment: Alignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.person_add_outlined),
+            tooltip: 'Follow Requests',
+            onPressed: () => context.push('/follow-requests'),
+          ),
+          if (pendingRequests.isNotEmpty)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 14,
+                  minHeight: 14,
+                ),
+                child: Text(
+                  '${pendingRequests.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+      IconButton(
+        icon: const Icon(Icons.settings_outlined),
+        tooltip: 'Settings',
+        onPressed: () => context.push('/settings'),
+      ),
+    ];
   }
 
   Widget _buildProfileHeader(
@@ -277,6 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     UserStats? stats,
     bool isOwnProfile,
     bool isFollowing,
+    bool isRequestPending,
     bool isLoading,
   ) {
     return Container(
@@ -381,13 +319,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: const Text('Edit Profile'),
               ),
             )
+          else if (user.isPrivate && !isFollowing && !isRequestPending)
+            Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.lock_outlined,
+                        size: 32,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'This account is private',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Follow to see their trips and posts',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : _handleFollowToggle,
+                    child: const Text('Send Follow Request'),
+                  ),
+                ),
+              ],
+            )
           else
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: isLoading ? null : _handleFollowToggle,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isFollowing
+                  backgroundColor: isFollowing || isRequestPending
                       ? Theme.of(context).colorScheme.outline
                       : Theme.of(context).colorScheme.primary,
                 ),
@@ -397,7 +380,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(isFollowing ? 'Unfollow' : 'Follow'),
+                    : Text(
+                        isFollowing 
+                          ? 'Unfollow' 
+                          : isRequestPending 
+                            ? 'Cancel Request' 
+                            : 'Follow'
+                      ),
               ),
             ),
         ],
@@ -453,20 +442,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatColumn(BuildContext context, String count, String label) {
-    return Column(
-      children: [
-        Text(
-          count,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            count,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

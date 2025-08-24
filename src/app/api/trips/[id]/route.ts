@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { AuthService } from '@/lib/auth'
-import { ApiResponse, TripResponse } from '@/types/api'
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { AuthService } from "@/lib/auth";
+import { ApiResponse, TripResponse } from "@/types/api";
 
 // Get trip by ID
 export async function GET(
@@ -9,28 +9,34 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const tripId = params.id
-    
+    const tripId = params.id;
+
     // Verify authentication
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: 'Authorization token required'
-      }, { status: 401 })
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: "Authorization token required",
+        },
+        { status: 401 }
+      );
     }
 
-    const token = authHeader.substring(7)
-    const payload = AuthService.verifyAccessToken(token)
+    const token = authHeader.substring(7);
+    const payload = AuthService.verifyAccessToken(token);
 
     if (!payload) {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: 'Invalid token'
-      }, { status: 401 })
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: "Invalid token",
+        },
+        { status: 401 }
+      );
     }
 
-    const currentUserId = payload.userId
+    const currentUserId = payload.userId;
 
     // Get trip with full details
     const trip = await prisma.trip.findUnique({
@@ -46,8 +52,8 @@ export async function GET(
             bio: true,
             isPrivate: true,
             createdAt: true,
-            updatedAt: true
-          }
+            updatedAt: true,
+          },
         },
         participants: {
           include: {
@@ -61,10 +67,10 @@ export async function GET(
                 bio: true,
                 isPrivate: true,
                 createdAt: true,
-                updatedAt: true
-              }
-            }
-          }
+                updatedAt: true,
+              },
+            },
+          },
         },
         threadEntries: {
           include: {
@@ -78,8 +84,8 @@ export async function GET(
                 bio: true,
                 isPrivate: true,
                 createdAt: true,
-                updatedAt: true
-              }
+                updatedAt: true,
+              },
             },
             taggedUsers: {
               include: {
@@ -93,37 +99,42 @@ export async function GET(
                     bio: true,
                     isPrivate: true,
                     createdAt: true,
-                    updatedAt: true
-                  }
-                }
-              }
+                    updatedAt: true,
+                  },
+                },
+              },
             },
-            media: true
+            media: true,
           },
-          orderBy: { createdAt: 'asc' }
+          orderBy: { createdAt: "asc" },
         },
         finalPost: true,
         _count: {
           select: {
             threadEntries: true,
             media: true,
-            participants: true
-          }
-        }
-      }
-    })
+            participants: true,
+          },
+        },
+      },
+    });
 
     if (!trip) {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: 'Trip not found'
-      }, { status: 404 })
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: "Trip not found",
+        },
+        { status: 404 }
+      );
     }
 
     // Check if user has access to this trip
-    const isOwner = trip.userId === currentUserId
-    const isParticipant = trip.participants.some(p => p.userId === currentUserId)
-    
+    const isOwner = trip.userId === currentUserId;
+    const isParticipant = trip.participants.some(
+      (p) => p.userId === currentUserId
+    );
+
     if (!isOwner && !isParticipant) {
       // Check if trip owner's profile is public or if current user follows them
       if (trip.user?.isPrivate) {
@@ -131,16 +142,20 @@ export async function GET(
           where: {
             followerId_followeeId: {
               followerId: currentUserId,
-              followeeId: trip.userId
-            }
-          }
-        })
+              followeeId: trip.userId,
+            },
+          },
+        });
 
         if (!followRelation) {
-          return NextResponse.json<ApiResponse>({
-            success: false,
-            error: 'Access denied to this private trip'
-          }, { status: 403 })
+          return NextResponse.json<ApiResponse>(
+            {
+              success: false,
+              error:
+                "Access denied. This trip belongs to a private profile. Follow the user to view their trips.",
+            },
+            { status: 403 }
+          );
         }
       }
     }
@@ -149,18 +164,22 @@ export async function GET(
       ...trip,
       startDate: trip.startDate?.toISOString() || undefined,
       endDate: trip.endDate?.toISOString() || undefined,
+      entryCount: trip.entryCount,
+      participantCount: trip.participantCount,
       createdAt: trip.createdAt.toISOString(),
       updatedAt: trip.updatedAt.toISOString(),
-      user: trip.user ? {
-        ...trip.user,
-        username: trip.user.username ?? undefined,
-        name: trip.user.name ?? undefined,
-        avatarUrl: trip.user.avatarUrl ?? undefined,
-        bio: trip.user.bio ?? undefined,
-        createdAt: trip.user.createdAt.toISOString(),
-        updatedAt: trip.user.updatedAt.toISOString()
-      } : undefined,
-      participants: trip.participants.map(p => ({
+      user: trip.user
+        ? {
+            ...trip.user,
+            username: trip.user.username ?? undefined,
+            name: trip.user.name ?? undefined,
+            avatarUrl: trip.user.avatarUrl ?? undefined,
+            bio: trip.user.bio ?? undefined,
+            createdAt: trip.user.createdAt.toISOString(),
+            updatedAt: trip.user.updatedAt.toISOString(),
+          }
+        : undefined,
+      participants: trip.participants.map((p) => ({
         ...p,
         joinedAt: p.joinedAt.toISOString(),
         user: {
@@ -170,52 +189,58 @@ export async function GET(
           avatarUrl: p.user.avatarUrl ?? undefined,
           bio: p.user.bio ?? undefined,
           createdAt: p.user.createdAt.toISOString(),
-          updatedAt: p.user.updatedAt.toISOString()
-        }
+          updatedAt: p.user.updatedAt.toISOString(),
+        },
       })),
-      threadEntries: trip.threadEntries.map(entry => ({
+      threadEntries: trip.threadEntries.map((entry) => ({
         ...entry,
         gpsCoordinates: entry.gpsCoordinates
-        ? ((typeof entry.gpsCoordinates === "string"
-            ? JSON.parse(entry.gpsCoordinates)
-            : entry.gpsCoordinates) as {
-            lat: number | null;
-            lng: number | null;
-          })
-        : null,
+          ? ((typeof entry.gpsCoordinates === "string"
+              ? JSON.parse(entry.gpsCoordinates)
+              : entry.gpsCoordinates) as {
+              lat: number | null;
+              lng: number | null;
+            })
+          : null,
         createdAt: entry.createdAt.toISOString(),
         author: {
           ...entry.author,
           createdAt: entry.author.createdAt.toISOString(),
-          updatedAt: entry.author.updatedAt.toISOString()
+          updatedAt: entry.author.updatedAt.toISOString(),
         },
-        taggedUsers: entry.taggedUsers.map(tag => ({
+        taggedUsers: entry.taggedUsers.map((tag) => ({
           ...tag.taggedUser,
           createdAt: tag.taggedUser.createdAt.toISOString(),
-          updatedAt: tag.taggedUser.updatedAt.toISOString()
+          updatedAt: tag.taggedUser.updatedAt.toISOString(),
         })),
-        media: entry.media ? {
-          ...entry.media,
-          createdAt: entry.media.createdAt.toISOString()
-        } : undefined
+        media: entry.media
+          ? {
+              ...entry.media,
+              createdAt: entry.media.createdAt.toISOString(),
+            }
+          : undefined,
       })),
-      finalPost: trip.finalPost ? {
-        ...trip.finalPost,
-        createdAt: trip.finalPost.createdAt.toISOString()
-      } : undefined
-    }
+      finalPost: trip.finalPost
+        ? {
+            ...trip.finalPost,
+            createdAt: trip.finalPost.createdAt.toISOString(),
+          }
+        : undefined,
+    };
 
     return NextResponse.json<ApiResponse<TripResponse>>({
       success: true,
-      data: tripResponse
-    })
-
+      data: tripResponse,
+    });
   } catch (error: any) {
-    console.error('Get trip error:', error)
-    
-    return NextResponse.json<ApiResponse>({
-      success: false,
-      error: 'Internal server error'
-    }, { status: 500 })
+    console.error("Get trip error:", error);
+
+    return NextResponse.json<ApiResponse>(
+      {
+        success: false,
+        error: "Internal server error",
+      },
+      { status: 500 }
+    );
   }
 }
