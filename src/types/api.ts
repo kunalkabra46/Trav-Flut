@@ -38,14 +38,17 @@ export interface FollowResponse {
 
 export interface FollowStatusResponse {
   isFollowing: boolean;
+  isFollowedBy: boolean;
   isRequestPending: boolean;
+  isPrivate: boolean;
   requestId?: string;
+  requestStatus?: "PENDING" | "ACCEPTED" | "REJECTED";
 }
 
 export interface FollowRequestDto {
   id: string;
   followerId: string;
-  followingId: string;
+  followeeId: string;
   status: "PENDING" | "ACCEPTED" | "REJECTED";
   createdAt: string;
   updatedAt: string;

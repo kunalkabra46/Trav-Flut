@@ -260,6 +260,13 @@ class TripThreadAppRouter extends StatelessWidget {
             return TripThreadScreen(tripId: tripId);
           },
         ),
+        // GoRoute(
+        //   path: '/trip/:tripId/participants',
+        //   builder: (context, state) {
+        //     final tripId = state.pathParameters['tripId']!;
+        //     return TripParticipantsScreen(tripId: tripId);
+        //   },
+        // ),
         GoRoute(
           path: '/follow-requests',
           builder: (context, state) => const FollowRequestsScreen(),

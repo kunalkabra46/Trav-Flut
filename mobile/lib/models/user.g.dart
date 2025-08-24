@@ -54,19 +54,3 @@ Map<String, dynamic> _$AuthResponseToJson(AuthResponse instance) =>
       'accessToken': instance.accessToken,
       'refreshToken': instance.refreshToken,
     };
-
-FollowStatusResponse _$FollowStatusResponseFromJson(
-        Map<String, dynamic> json) =>
-    FollowStatusResponse(
-      isFollowing: json['isFollowing'] as bool,
-      isRequestPending: json['isRequestPending'] as bool,
-      requestId: json['requestId'] as String?,
-    );
-
-Map<String, dynamic> _$FollowStatusResponseToJson(
-        FollowStatusResponse instance) =>
-    <String, dynamic>{
-      'isFollowing': instance.isFollowing,
-      'isRequestPending': instance.isRequestPending,
-      'requestId': instance.requestId,
-    };

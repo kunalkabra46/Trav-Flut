@@ -51,40 +51,28 @@ class FeedProvider extends ChangeNotifier {
       _isHomeFeedLoading = true;
       notifyListeners();
 
-      debugPrint(
-          '[FeedProvider] Loading home feed, page: $_homeFeedPage, limit: 20');
+      debugPrint('[FeedProvider] Loading home feed, page: $_homeFeedPage, limit: 20');
       final response = await _apiService.getHomeFeed(
         page: _homeFeedPage,
         limit: 20,
       );
 
-      debugPrint(
-          '[FeedProvider] Home feed API response: success=${response.success}, error=${response.error}');
+      debugPrint('[FeedProvider] Home feed API response: success=${response.success}, error=${response.error}');
 
       if (response.success && response.data != null) {
         final data = response.data!;
         debugPrint('[FeedProvider] Home feed data keys: ${data.keys.toList()}');
 
         // Validate response structure
-        if (!data.containsKey('items')) {
-          throw Exception('Invalid response structure: missing "items" field');
-        }
-
-        if (!data.containsKey('hasNext')) {
-          throw Exception(
-              'Invalid response structure: missing "hasNext" field');
+        if (!data.containsKey('items') || !data.containsKey('hasNext')) {
+          throw Exception('Invalid response structure: missing required fields');
         }
 
         final items = data['items'];
-        if (items is! List) {
-          throw Exception(
-              'Invalid response structure: "items" is not a list, got ${items.runtimeType}');
-        }
-
         final hasNext = data['hasNext'];
-        if (hasNext is! bool) {
-          throw Exception(
-              'Invalid response structure: "hasNext" is not a boolean, got ${hasNext.runtimeType}');
+
+        if (items is! List || hasNext is! bool) {
+          throw Exception('Invalid response data types');
         }
 
         debugPrint('[FeedProvider] Parsing ${items.length} home feed posts');
@@ -94,8 +82,15 @@ class FeedProvider extends ChangeNotifier {
           try {
             final item = items[i];
             if (item is! Map<String, dynamic>) {
-              debugPrint(
-                  '[FeedProvider] Warning: item $i is not a Map, got ${item.runtimeType}');
+              debugPrint('[FeedProvider] Warning: item $i is not a Map, got ${item.runtimeType}');
+              continue;
+            }
+
+            // Skip posts from private accounts that we're not following
+            final isPrivate = item['isPrivate'] ?? false;
+            final isFollowing = item['isFollowing'] ?? false;
+            if (isPrivate && !isFollowing) {
+              debugPrint('[FeedProvider] Skipping private post from non-followed user');
               continue;
             }
 
@@ -106,7 +101,6 @@ class FeedProvider extends ChangeNotifier {
           } catch (parseError) {
             debugPrint('[FeedProvider] Error parsing post $i: $parseError');
             debugPrint('[FeedProvider] Post $i data: $items[i]');
-            // Continue with other posts instead of failing completely
           }
         }
 
@@ -116,12 +110,11 @@ class FeedProvider extends ChangeNotifier {
         }
 
         _homeFeedPosts.addAll(posts);
-        _hasMoreHomeFeedPosts = hasNext;
+        _hasMoreHomeFeedPosts = hasNext && posts.isNotEmpty;
         _homeFeedPage++;
         _homeFeedError = null;
 
-        debugPrint(
-            '[FeedProvider] Home feed updated: ${_homeFeedPosts.length} posts, hasNext: $_hasMoreHomeFeedPosts, page: $_homeFeedPage');
+        debugPrint('[FeedProvider] Home feed updated: ${_homeFeedPosts.length} posts, hasNext: $_hasMoreHomeFeedPosts, page: $_homeFeedPage');
       } else {
         _homeFeedError = response.error ?? 'Failed to load home feed';
         debugPrint('[FeedProvider] Home feed failed: $_homeFeedError');
@@ -167,6 +160,7 @@ class FeedProvider extends ChangeNotifier {
         limit: 20,
         status: status,
         mood: mood,
+        includePrivate: false, // Only fetch public and followed user trips
       );
 
       debugPrint(
@@ -174,29 +168,17 @@ class FeedProvider extends ChangeNotifier {
 
       if (response.success && response.data != null) {
         final data = response.data!;
-        debugPrint(
-            '[FeedProvider] Discover trips data keys: ${data.keys.toList()}');
 
         // Validate response structure
-        if (!data.containsKey('items')) {
-          throw Exception('Invalid response structure: missing "items" field');
-        }
-
-        if (!data.containsKey('hasNext')) {
-          throw Exception(
-              'Invalid response structure: missing "hasNext" field');
+        if (!data.containsKey('items') || !data.containsKey('hasNext')) {
+          throw Exception('Invalid response structure: missing required fields');
         }
 
         final items = data['items'];
-        if (items is! List) {
-          throw Exception(
-              'Invalid response structure: "items" is not a list, got ${items.runtimeType}');
-        }
-
         final hasNext = data['hasNext'];
-        if (hasNext is! bool) {
-          throw Exception(
-              'Invalid response structure: "hasNext" is not a boolean, got ${hasNext.runtimeType}');
+
+        if (items is! List || hasNext is! bool) {
+          throw Exception('Invalid response data types');
         }
 
         debugPrint('[FeedProvider] Parsing ${items.length} discover trips');
@@ -213,12 +195,16 @@ class FeedProvider extends ChangeNotifier {
 
             debugPrint('[FeedProvider] Parsing trip $i: ${item.keys.toList()}');
             final trip = Trip.fromJson(item);
-            trips.add(trip);
+
+            // Only add trips that are either public or from followed users
+            if (trip.user?.isPrivate != true || item['isFollowing'] == true) {
+              trips.add(trip);
+            }
+
             debugPrint('[FeedProvider] Successfully parsed trip: ${trip.id}');
           } catch (parseError) {
             debugPrint('[FeedProvider] Error parsing trip $i: $parseError');
             debugPrint('[FeedProvider] Trip $i data: $items[i]');
-            // Continue with other trips instead of failing completely
           }
         }
 
@@ -228,7 +214,7 @@ class FeedProvider extends ChangeNotifier {
         }
 
         _discoverTrips.addAll(trips);
-        _hasMoreDiscoverTrips = hasNext;
+        _hasMoreDiscoverTrips = hasNext && trips.isNotEmpty;
         _discoverTripsPage++;
         _discoverTripsError = null;
 

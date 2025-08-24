@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:tripthread/models/user.dart';
+import 'package:tripthread/models/follow_status.dart';
+import 'package:tripthread/models/api_response.dart';
 import 'package:tripthread/services/api_service.dart';
 
 class UserProvider extends ChangeNotifier {
@@ -102,7 +104,6 @@ class UserProvider extends ChangeNotifier {
       notifyListeners();
 
       final response = await _apiService.updateProfile(
-        userId: userId,
         name: name,
         username: username,
         bio: bio,
@@ -130,35 +131,54 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> togglePrivacy(String userId) async {
+  Future<bool> updatePrivacySettings() async {
     try {
-      final response = await _apiService.togglePrivacy(userId);
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final currentUser = await getCurrentUser();
+      if (currentUser == null) {
+        _error = 'No current user found';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final response = await _apiService.togglePrivacy(currentUser.id);
 
       if (response.success && response.data != null) {
-        _userCache[userId] = response.data!;
+        // Update the user in cache
+        final updatedUser = response.data!;
+        _userCache[updatedUser.id] = updatedUser;
+
+        _isLoading = false;
         notifyListeners();
         return true;
       } else {
-        _error = response.error ?? 'Failed to toggle privacy';
+        _error = response.error ?? 'Failed to update privacy settings';
+        _isLoading = false;
         notifyListeners();
         return false;
       }
     } catch (e) {
       _error = 'An unexpected error occurred';
+      _isLoading = false;
       notifyListeners();
-      debugPrint('Toggle privacy error: $e');
+      debugPrint('Privacy settings update error: $e');
       return false;
     }
   }
 
   Future<bool> fetchFollowStatus(String userId) async {
     try {
-      final response = await _apiService.getFollowStatus(userId);
+      final response = await _apiService.getDetailedFollowStatus(userId);
 
-      if (response.success) {
-        _followStatusCache[userId] = response.data ?? false;
+      if (response.success && response.data != null) {
+        final followStatus = response.data!;
+        _followStatusCache[userId] = followStatus.isFollowing;
         notifyListeners();
-        return response.data ?? false;
+        return followStatus.isFollowing;
       } else {
         _followStatusCache[userId] = false;
         notifyListeners();
@@ -182,19 +202,25 @@ class UserProvider extends ChangeNotifier {
         notifyListeners();
         return response.data;
       } else {
-        _detailedFollowStatusCache[userId] = const FollowStatusResponse(
+        final defaultResponse = FollowStatusResponse(
           isFollowing: false,
+          isFollowedBy: false,
           isRequestPending: false,
+          isPrivate: _userCache[userId]?.isPrivate ?? false,
         );
+        _detailedFollowStatusCache[userId] = defaultResponse;
         _followStatusCache[userId] = false;
         notifyListeners();
         return null;
       }
     } catch (e) {
-      _detailedFollowStatusCache[userId] = const FollowStatusResponse(
+      final defaultResponse = FollowStatusResponse(
         isFollowing: false,
+        isFollowedBy: false,
         isRequestPending: false,
+        isPrivate: _userCache[userId]?.isPrivate ?? false,
       );
+      _detailedFollowStatusCache[userId] = defaultResponse;
       _followStatusCache[userId] = false;
       notifyListeners();
       debugPrint('Fetch detailed follow status error: $e');
@@ -202,6 +228,7 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  // Fixed version of follow request loading
   Future<void> loadPendingFollowRequests() async {
     try {
       _isFollowRequestsLoading = true;
@@ -214,8 +241,7 @@ class UserProvider extends ChangeNotifier {
         _pendingFollowRequests = response.data!;
         _followRequestsError = null;
       } else {
-        _followRequestsError =
-            response.error ?? 'Failed to load follow requests';
+        _followRequestsError = response.error ?? 'Failed to load follow requests';
       }
     } catch (e) {
       _followRequestsError = 'An unexpected error occurred';
@@ -226,29 +252,35 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> acceptFollowRequest(String requestId) async {
+  // Updated accept/reject follow request methods
+  Future<bool> acceptFollowRequest(String userId) async {
     try {
       _isLoading = true;
       notifyListeners();
 
-      final response = await _apiService.acceptFollowRequest(requestId);
+      final response = await _apiService.respondToFollowRequest(userId, true);
 
       if (response.success) {
-        // Remove the request from pending list
-        _pendingFollowRequests.removeWhere((req) => req.id == requestId);
-
-        // Update follow status cache for the requester
-        final request = _pendingFollowRequests.firstWhere(
-          (req) => req.id == requestId,
-          orElse: () => _pendingFollowRequests.first,
+        // Remove request from pending list
+        _pendingFollowRequests.removeWhere((req) => req.followerId == userId);
+        
+        // Update follow status caches
+        _followStatusCache[userId] = true;
+        _detailedFollowStatusCache[userId] = FollowStatusResponse(
+          isFollowing: true,
+          isFollowedBy: true,
+          isRequestPending: false,
+          isPrivate: false,
         );
-        if (_pendingFollowRequests.isNotEmpty) {
-          _followStatusCache[request.followerId] = true;
-          _detailedFollowStatusCache[request.followerId] =
-              const FollowStatusResponse(
-            isFollowing: true,
-            isRequestPending: false,
-          );
+
+        // Fetch current user
+        final currentUser = await getCurrentUser();
+        if (currentUser != null) {
+          // Refresh stats for both users
+          await Future.wait([
+            fetchUserStats(userId),
+            fetchUserStats(currentUser.id),
+          ]);
         }
 
         _isLoading = false;
@@ -269,16 +301,25 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> rejectFollowRequest(String requestId) async {
+  Future<bool> rejectFollowRequest(String userId) async {
     try {
       _isLoading = true;
       notifyListeners();
 
-      final response = await _apiService.rejectFollowRequest(requestId);
+      final response = await _apiService.respondToFollowRequest(userId, false);
 
       if (response.success) {
-        // Remove the request from pending list
-        _pendingFollowRequests.removeWhere((req) => req.id == requestId);
+        // Remove request from pending list
+        _pendingFollowRequests.removeWhere((req) => req.followerId == userId);
+        
+        // Update follow status caches
+        _followStatusCache[userId] = false;
+        _detailedFollowStatusCache[userId] = FollowStatusResponse(
+          isFollowing: false,
+          isFollowedBy: false,
+          isRequestPending: false,
+          isPrivate: true,
+        );
 
         _isLoading = false;
         notifyListeners();
@@ -319,16 +360,12 @@ class UserProvider extends ChangeNotifier {
       );
 
       if (response.success && response.data != null) {
-        final data = response.data!;
-        final users = data['items'] as List<dynamic>;
-        final hasNext = data['hasNext'] as bool;
-
         if (refresh) {
           _discoverUsers.clear();
         }
 
-        _discoverUsers.addAll(users.cast<Map<String, dynamic>>());
-        _hasMoreUsers = hasNext;
+        _discoverUsers.addAll(response.data!);
+        _hasMoreUsers = response.data!.any((user) => user['hasNext'] as bool? ?? false);
         _discoverPage++;
         _discoverError = null;
       } else {
@@ -364,22 +401,51 @@ class UserProvider extends ChangeNotifier {
   Future<bool> followUser(String userId, {String? currentUserId}) async {
     try {
       _isLoading = true;
+      _error = null;
       notifyListeners();
 
-      final response = await _apiService.followUser(userId);
+      // First check if user is private
+      final targetUser = await fetchUser(userId);
+      if (targetUser == null) {
+        _error = 'User not found';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      ApiResponse<void> response;
+      if (targetUser.isPrivate) {
+        // For private users, send a follow request
+        response = await _apiService.sendFollowRequest(userId);
+        if (response.success) {
+          _detailedFollowStatusCache[userId] = FollowStatusResponse(
+            isFollowing: false,
+            isFollowedBy: false,
+            isRequestPending: true,
+            isPrivate: true,
+          );
+        }
+      } else {
+        // For public users, follow directly
+        response = await _apiService.followUser(userId);
+        if (response.success) {
+          _followStatusCache[userId] = true;
+          _detailedFollowStatusCache[userId] = FollowStatusResponse(
+            isFollowing: true,
+            isFollowedBy: false,
+            isRequestPending: false,
+            isPrivate: false,
+          );
+        }
+      }
 
       if (response.success) {
-        // Update follow status cache
-        _followStatusCache[userId] = true;
-
-        // Refresh target user's stats
-        await fetchUserStats(userId);
-
-        // Refresh current user's stats if provided
+        // Refresh stats for both users
         if (currentUserId != null) {
           await fetchUserStats(currentUserId);
         }
-
+        await fetchUserStats(userId);
+        
         _isLoading = false;
         notifyListeners();
         return true;
@@ -398,24 +464,118 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  // Send follow request for private users
+  Future<bool> sendFollowRequest(String userId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final response = await _apiService.sendFollowRequest(userId);
+      
+      if (response.success) {
+        // Update follow status cache
+        _detailedFollowStatusCache[userId] = FollowStatusResponse(
+          isFollowing: false,
+          isFollowedBy: false,
+          isRequestPending: true,
+          isPrivate: true,
+        );
+        
+        // Refresh stats for both users
+        final currentUser = await getCurrentUser();
+        if (currentUser != null) {
+          await fetchUserStats(currentUser.id);
+        }
+        await fetchUserStats(userId);
+        
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = response.error ?? 'Failed to send follow request';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Send follow request error: $e');
+      return false;
+    }
+  }
+
+  // Cancel follow request
+  Future<bool> cancelFollowRequest(String userId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final response = await _apiService.cancelFollowRequest(userId);
+      
+      if (response.success) {
+        // Update follow status cache
+        _detailedFollowStatusCache[userId] = FollowStatusResponse(
+          isFollowing: false,
+          isFollowedBy: false,
+          isRequestPending: false,
+          isPrivate: true,
+        );
+        
+        // Refresh stats for both users
+        final currentUser = await getCurrentUser();
+        if (currentUser != null) {
+          await fetchUserStats(currentUser.id);
+        }
+        await fetchUserStats(userId);
+        
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = response.error ?? 'Failed to cancel follow request';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Cancel follow request error: $e');
+      return false;
+    }
+  }
+
   Future<bool> unfollowUser(String userId, {String? currentUserId}) async {
     try {
       _isLoading = true;
       notifyListeners();
 
-      final response = await _apiService.unfollowUser(userId);
+      // First check if there are any requests pending
+      final detailedStatus = await fetchDetailedFollowStatus(userId);
+      
+      // If there's a pending request, cancel it instead of unfollowing
+      final response = detailedStatus?.isRequestPending == true
+          ? await _apiService.cancelFollowRequest(userId)
+          : await _apiService.unfollowUser(userId);
 
       if (response.success) {
-        // Update follow status cache
+        // Update follow status caches
         _followStatusCache[userId] = false;
+        _detailedFollowStatusCache[userId] = FollowStatusResponse(
+          isFollowing: false,
+          isFollowedBy: detailedStatus?.isFollowedBy ?? false,
+          isRequestPending: false,
+          isPrivate: detailedStatus?.isPrivate ?? false,
+        );
 
-        // Refresh target user's stats
-        await fetchUserStats(userId);
-
-        // Refresh current user's stats if provided
-        if (currentUserId != null) {
-          await fetchUserStats(currentUserId);
-        }
+        // Refresh both users' stats in parallel
+        await Future.wait([
+          fetchUserStats(userId),
+          if (currentUserId != null) fetchUserStats(currentUserId),
+        ]);
 
         _isLoading = false;
         notifyListeners();
@@ -430,6 +590,7 @@ class UserProvider extends ChangeNotifier {
       _error = 'An unexpected error occurred';
       _isLoading = false;
       notifyListeners();
+      debugPrint('Unfollow user error: $e');
       return false;
     }
   }
@@ -461,5 +622,32 @@ class UserProvider extends ChangeNotifier {
   // Method to refresh current user's stats after follow/unfollow actions
   Future<void> refreshCurrentUserStats(String currentUserId) async {
     await fetchUserStats(currentUserId);
+  }
+
+  // Helper method to refresh stats after follow/unfollow actions
+  Future<void> refreshUserStats() async {
+    try {
+      final response = await _apiService.getCurrentUser();
+      if (response.success && response.data != null) {
+        await fetchUserStats(response.data!.id);
+      }
+    } catch (e) {
+      debugPrint('Error refreshing user stats: $e');
+    }
+  }
+
+  Future<User?> getCurrentUser() async {
+    try {
+      final response = await _apiService.getCurrentUser();
+      if (response.success && response.data != null) {
+        _userCache[response.data!.id] = response.data!;
+        notifyListeners();
+        return response.data;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Get current user error: $e');
+      return null;
+    }
   }
 }

@@ -59,35 +59,112 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _handleFollowToggle() async {
+    if (!mounted) return;
+
     final userProvider = context.read<UserProvider>();
     final authProvider = context.read<AuthProvider>();
-    final detailedStatus = userProvider.getDetailedFollowStatus(widget.userId);
+
+    // Fetch latest follow status first
+    final detailedStatus = await userProvider.fetchDetailedFollowStatus(widget.userId);
     final isCurrentlyFollowing = detailedStatus?.isFollowing ?? false;
+    final isRequestPending = detailedStatus?.isRequestPending ?? false;
+    final isPrivate = detailedStatus?.isPrivate ?? false;
+
+    if (!mounted) return;
 
     final currentUser = authProvider.currentUser;
-    final success = isCurrentlyFollowing
-        ? await userProvider.unfollowUser(widget.userId,
-            currentUserId: currentUser?.id)
-        : await userProvider.followUser(widget.userId,
-            currentUserId: currentUser?.id);
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to follow users'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-    if (success && mounted) {
-      // Refresh detailed follow status
-      await userProvider.fetchDetailedFollowStatus(widget.userId);
+    bool success = false;
+    
+    if (isCurrentlyFollowing) {
+      // Unfollow user
+      success = await userProvider.unfollowUser(widget.userId, currentUserId: currentUser.id);
+    } else if (isRequestPending) {
+      // Cancel follow request
+      success = await userProvider.cancelFollowRequest(widget.userId);
+    } else {
+      // Send follow request or follow directly
+      if (isPrivate) {
+        success = await userProvider.sendFollowRequest(widget.userId);
+      } else {
+        success = await userProvider.followUser(widget.userId, currentUserId: currentUser.id);
+      }
+    }
+
+    if (!mounted) return;
+
+    if (success) {
+      // Refresh both follow status and stats
+      await Future.wait([
+        userProvider.fetchDetailedFollowStatus(widget.userId),
+        userProvider.fetchUserStats(widget.userId),
+        userProvider.fetchUserStats(currentUser.id),
+      ]);
       
+      if (!mounted) return;
+
+      String message;
+      if (isCurrentlyFollowing) {
+        message = 'Unfollowed successfully';
+      } else if (isRequestPending) {
+        message = 'Follow request cancelled';
+      } else if (isPrivate) {
+        message = 'Follow request sent';
+      } else {
+        message = 'Following successfully';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isCurrentlyFollowing
-              ? 'Unfollowed successfully'
-              : 'Following successfully'),
+          content: Text(message),
           backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(userProvider.error ?? 'Failed to update follow status'),
+          backgroundColor: Colors.red,
         ),
       );
     }
   }
 
   Future<void> _refreshProfile() async {
-    await _loadProfileData();
+    if (!mounted) return;
+    final userProvider = context.read<UserProvider>();
+    final authProvider = context.read<AuthProvider>();
+    
+    // Clear any previous errors
+    userProvider.clearError();
+
+    try {
+      // Load profile data in parallel
+      await Future.wait([
+        userProvider.fetchUser(widget.userId),
+        userProvider.fetchUserStats(widget.userId),
+        if (authProvider.currentUser?.id != widget.userId)
+          userProvider.fetchDetailedFollowStatus(widget.userId),
+      ]);
+
+      if (!mounted) return;
+
+      // Load follow requests if it's the current user's profile
+      if (authProvider.currentUser?.id == widget.userId) {
+        await userProvider.loadPendingFollowRequests();
+      }
+    } catch (e) {
+      debugPrint('Error refreshing profile data: $e');
+    }
   }
 
   @override
@@ -96,16 +173,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, authProvider, userProvider, child) {
         final currentUser = authProvider.currentUser;
         final profileUser = userProvider.getUser(widget.userId);
-          await userProvider.fetchDetailedFollowStatus(widget.userId);
-        }
-
-        // Load pending follow requests if it's own profile
-        if (currentUser != null && currentUser.id == widget.userId) {
-          await userProvider.loadPendingFollowRequests();
+        final userStats = userProvider.getUserStats(widget.userId);
         final isOwnProfile = currentUser?.id == widget.userId;
         final detailedFollowStatus = userProvider.getDetailedFollowStatus(widget.userId);
         final isFollowing = detailedFollowStatus?.isFollowing ?? false;
-        final isRequestPending = detailedFollowStatus?.isRequestPending ?? false;
         final isRequestPending = detailedFollowStatus?.isRequestPending ?? false;
 
         if (_isInitialLoad && profileUser == null) {
@@ -301,6 +372,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       userStats,
                       isOwnProfile,
                       isFollowing,
+                      isRequestPending,
                       userProvider.isLoading,
                     ),
 
@@ -324,6 +396,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     UserStats? stats,
     bool isOwnProfile,
     bool isFollowing,
+    bool isRequestPending,
     bool isLoading,
   ) {
     return Container(
@@ -428,7 +501,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: const Text('Edit Profile'),
               ),
             )
-          else if (profileUser.isPrivate && !isFollowing && !isRequestPending)
+          else if (user.isPrivate && !isFollowing && !isRequestPending)
             Column(
               children: [
                 Container(

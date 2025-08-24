@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tripthread/providers/user_provider.dart';
 import 'package:tripthread/models/user.dart';
+import 'package:tripthread/models/follow_status.dart';
 
 class FollowRequestsScreen extends StatefulWidget {
   const FollowRequestsScreen({Key? key}) : super(key: key);
@@ -19,31 +21,61 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
     });
   }
 
-  Future<void> _handleAcceptRequest(
-      String requestId, String followerName) async {
+  Future<void> _handleAcceptRequest(String requestId, String followerName) async {
+    if (!mounted) return;
+
     final userProvider = context.read<UserProvider>();
     final success = await userProvider.acceptFollowRequest(requestId);
 
-    if (success && mounted) {
+    if (!mounted) return;
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Accepted follow request from $followerName'),
           backgroundColor: Colors.green,
         ),
       );
+
+      // Refresh follow requests list
+      if (mounted) {
+        await userProvider.loadPendingFollowRequests();
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(userProvider.followRequestsError ?? 'Failed to accept request'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
-  Future<void> _handleRejectRequest(
-      String requestId, String followerName) async {
+  Future<void> _handleRejectRequest(String requestId, String followerName) async {
+    if (!mounted) return;
+
     final userProvider = context.read<UserProvider>();
     final success = await userProvider.rejectFollowRequest(requestId);
 
-    if (success && mounted) {
+    if (!mounted) return;
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Rejected follow request from $followerName'),
           backgroundColor: Colors.orange,
+        ),
+      );
+
+      // Refresh follow requests list
+      if (mounted) {
+        await userProvider.loadPendingFollowRequests();
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(userProvider.followRequestsError ?? 'Failed to reject request'),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -61,8 +93,7 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
       ),
       body: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
-          if (userProvider.isFollowRequestsLoading &&
-              userProvider.pendingFollowRequests.isEmpty) {
+          if (userProvider.isFollowRequestsLoading && userProvider.pendingFollowRequests.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -123,7 +154,7 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'When someone requests to follow you, their requests will appear here',
+                    'When someone requests to follow you,\ntheir requests will appear here',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey[500],
@@ -136,7 +167,7 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
 
           return RefreshIndicator(
             onRefresh: () async {
-              userProvider.loadPendingFollowRequests();
+              await userProvider.loadPendingFollowRequests();
             },
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -165,127 +196,128 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                // Avatar
-                CircleAvatar(
-                  radius: 25,
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  backgroundImage: follower.avatarUrl != null
-                      ? NetworkImage(follower.avatarUrl!)
-                      : null,
-                  child: follower.avatarUrl == null
-                      ? Text(
-                          follower.name?.substring(0, 1).toUpperCase() ?? 'U',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        )
-                      : null,
-                ),
-
-                const SizedBox(width: 16),
-
-                // User Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        follower.name ?? 'User',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                      ),
-                      if (follower.username != null)
-                        Text(
-                          '@${follower.username}',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.grey[600],
-                                  ),
-                        ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _formatDateTime(request.createdAt),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[500],
+      clipBehavior: Clip.hardEdge,
+      child: InkWell(
+        onTap: () => context.push('/profile/${follower.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  // Avatar
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    backgroundImage: follower.avatarUrl != null
+                        ? NetworkImage(follower.avatarUrl!)
+                        : null,
+                    child: follower.avatarUrl == null
+                        ? Text(
+                            follower.name?.substring(0, 1).toUpperCase() ?? 'U',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
-                      ),
-                    ],
+                          )
+                        : null,
                   ),
+
+                  const SizedBox(width: 16),
+
+                  // User Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          follower.name ?? 'User',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                        if (follower.username != null)
+                          Text(
+                            '@${follower.username}',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey[600],
+                                ),
+                          ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatDateTime(request.createdAt),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey[500],
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              if (follower.bio != null && follower.bio!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  follower.bio!,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
-            ),
 
-            if (follower.bio != null && follower.bio!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                follower.bio!,
-                style: Theme.of(context).textTheme.bodyMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 16),
+
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: userProvider.isLoading
+                          ? null
+                          : () => _handleRejectRequest(
+                                request.id,
+                                follower.name ?? 'User',
+                              ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: BorderSide(color: Colors.red[300]!),
+                      ),
+                      child: userProvider.isLoading
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Reject'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: userProvider.isLoading
+                          ? null
+                          : () => _handleAcceptRequest(
+                                request.id,
+                                follower.name ?? 'User',
+                              ),
+                      child: userProvider.isLoading
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Text('Accept'),
+                    ),
+                  ),
+                ],
               ),
             ],
-
-            const SizedBox(height: 16),
-
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: userProvider.isLoading
-                        ? null
-                        : () => _handleRejectRequest(
-                              request.id,
-                              follower.name ?? 'User',
-                            ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: BorderSide(color: Colors.red[300]!),
-                    ),
-                    child: userProvider.isLoading
-                        ? const SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Reject'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: userProvider.isLoading
-                        ? null
-                        : () => _handleAcceptRequest(
-                              request.id,
-                              follower.name ?? 'User',
-                            ),
-                    child: userProvider.isLoading
-                        ? const SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text('Accept'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
