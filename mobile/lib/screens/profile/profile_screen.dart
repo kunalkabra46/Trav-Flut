@@ -18,43 +18,39 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _isInitialLoad = true;
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadProfileData();
-    });
+    _loadProfileData();
   }
 
   Future<void> _loadProfileData() async {
+    if (!mounted) return;
+    
     final userProvider = context.read<UserProvider>();
     final authProvider = context.read<AuthProvider>();
-
-    // Clear any previous errors
-    userProvider.clearError();
-
+    final isOwnProfile = authProvider.currentUser?.id == widget.userId;
+    
+    debugPrint('[ProfileScreen] Loading profile data for userId: ${widget.userId}');
+    debugPrint('[ProfileScreen] Current user: ${authProvider.currentUser?.id}');
+    debugPrint('[ProfileScreen] isOwnProfile: $isOwnProfile');
+    
     try {
-      // Fetch user profile
-      await userProvider.fetchUser(widget.userId);
+      // Load profile data in parallel
+      await Future.wait([
+        userProvider.fetchUser(widget.userId),
+        userProvider.fetchUserStats(widget.userId),
+        userProvider.fetchDetailedFollowStatus(widget.userId),
+      ]);
 
-      // Fetch user stats
-      await userProvider.fetchUserStats(widget.userId);
-
-      // Fetch follow status (only if not own profile)
-      final currentUser = authProvider.currentUser;
-      if (currentUser != null && currentUser.id != widget.userId) {
-        await userProvider.fetchFollowStatus(widget.userId);
+      // Always load pending follow requests for current user's profile
+      if (authProvider.currentUser?.id == widget.userId) {
+        debugPrint('[ProfileScreen] Loading pending follow requests for current user');
+        await userProvider.loadPendingFollowRequests();
+        debugPrint('[ProfileScreen] Loaded ${userProvider.pendingFollowRequests.length} pending requests');
       }
     } catch (e) {
       debugPrint('Error loading profile data: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isInitialLoad = false;
-        });
-      }
     }
   }
 
@@ -69,6 +65,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isCurrentlyFollowing = detailedStatus?.isFollowing ?? false;
     final isRequestPending = detailedStatus?.isRequestPending ?? false;
     final isPrivate = detailedStatus?.isPrivate ?? false;
+
+    debugPrint('Follow toggle - Current state: following=$isCurrentlyFollowing, pending=$isRequestPending, private=$isPrivate');
 
     if (!mounted) return;
 
@@ -87,15 +85,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     
     if (isCurrentlyFollowing) {
       // Unfollow user
+      debugPrint('Attempting to unfollow user');
       success = await userProvider.unfollowUser(widget.userId, currentUserId: currentUser.id);
     } else if (isRequestPending) {
       // Cancel follow request
+      debugPrint('Attempting to cancel follow request');
       success = await userProvider.cancelFollowRequest(widget.userId);
     } else {
       // Send follow request or follow directly
       if (isPrivate) {
+        debugPrint('Attempting to send follow request to private user');
         success = await userProvider.sendFollowRequest(widget.userId);
       } else {
+        debugPrint('Attempting to follow public user');
         success = await userProvider.followUser(widget.userId, currentUserId: currentUser.id);
       }
     }
@@ -103,6 +105,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
 
     if (success) {
+      debugPrint('Action successful, refreshing profile data');
+      
       // Refresh both follow status and stats
       await Future.wait([
         userProvider.fetchDetailedFollowStatus(widget.userId),
@@ -129,7 +133,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           backgroundColor: Colors.green,
         ),
       );
+      
+      // Force a rebuild to update the UI
+      setState(() {});
     } else {
+      debugPrint('Action failed: ${userProvider.error}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(userProvider.error ?? 'Failed to update follow status'),
@@ -152,8 +160,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await Future.wait([
         userProvider.fetchUser(widget.userId),
         userProvider.fetchUserStats(widget.userId),
-        if (authProvider.currentUser?.id != widget.userId)
-          userProvider.fetchDetailedFollowStatus(widget.userId),
+        // Always fetch detailed follow status to show correct button states
+        userProvider.fetchDetailedFollowStatus(widget.userId),
       ]);
 
       if (!mounted) return;
@@ -169,149 +177,127 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[ProfileScreen] Building profile screen for userId: ${widget.userId}');
     return Consumer2<AuthProvider, UserProvider>(
       builder: (context, authProvider, userProvider, child) {
         final currentUser = authProvider.currentUser;
-        final profileUser = userProvider.getUser(widget.userId);
-        final userStats = userProvider.getUserStats(widget.userId);
+        final user = userProvider.getUser(widget.userId);
+        final stats = userProvider.getUserStats(widget.userId);
         final isOwnProfile = currentUser?.id == widget.userId;
-        final detailedFollowStatus = userProvider.getDetailedFollowStatus(widget.userId);
-        final isFollowing = detailedFollowStatus?.isFollowing ?? false;
-        final isRequestPending = detailedFollowStatus?.isRequestPending ?? false;
-
-        if (_isInitialLoad && profileUser == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Profile')),
-            body: const Center(child: CircularProgressIndicator()),
-          );
+        
+        // Ensure follow requests are loaded for own profile
+        if (isOwnProfile && !userProvider.isFollowRequestsLoading) {
+          debugPrint('[ProfileScreen] Loading follow requests for own profile');
+          userProvider.loadPendingFollowRequests();
         }
+        
+        final pendingRequests = isOwnProfile ? userProvider.pendingFollowRequests : [];
+        
+        debugPrint('[ProfileScreen] isOwnProfile: $isOwnProfile (currentUserId: ${currentUser?.id})');
+        debugPrint('[ProfileScreen] pendingRequests: ${pendingRequests.length}');
 
-        if (userProvider.isLoading && profileUser == null) {
+        if (userProvider.isLoading) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        if (profileUser == null && !userProvider.isLoading) {
+        if (user == null) {
           return Scaffold(
             appBar: AppBar(
-              title: const Text('Profile'),
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  // Get the 'from' parameter or default to home
-                  final extra = GoRouterState.of(context).extra;
-                  final from = (extra is Map && extra['from'] != null)
-                      ? extra['from'] as String
-                      : '/home';
-                  context.go(from);
-                },
+                onPressed: () => Navigator.of(context).pop(),
               ),
             ),
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.person_off_outlined,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'User not found',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'This profile may have been deleted or doesn\'t exist.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => context.go('/home'),
-                    child: const Text('Go Home'),
-                  ),
-                ],
-              ),
+            body: const Center(
+              child: Text('User not found'),
             ),
           );
         }
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(profileUser?.name ?? 'Profile'),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                // Get the 'from' parameter or default to home
-                final extra = GoRouterState.of(context).extra;
-                final from = (extra is Map && extra['from'] != null)
-                    ? extra['from'] as String
-                    : '/home';
-                context.go(from);
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
+            title: Text(user.username ?? 'Profile'),
             actions: [
-              if (isOwnProfile)
-                IconButton(
-                  icon: Stack(
-                    children: [
-                      const Icon(Icons.person_add_outlined),
-                      if (userProvider.pendingFollowRequests.isNotEmpty)
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 12,
-                              minHeight: 12,
-                            ),
-                            child: Text(
-                              '${userProvider.pendingFollowRequests.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 8,
-                              ),
-                              textAlign: TextAlign.center,
+              // Follow requests button for own profile
+              if (isOwnProfile) 
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.person_add),
+                      tooltip: 'Follow Requests',
+                      onPressed: () {
+                        debugPrint('[ProfileScreen] Opening follow requests');
+                        context.push('/follow-requests');
+                      },
+                    ),
+                    if (pendingRequests.isNotEmpty)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.error,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.surface,
+                              width: 1.5,
                             ),
                           ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            pendingRequests.length.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                    ],
+                      ),
+                  ],
+                ),
+              // Settings button
+              if (isOwnProfile)
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  tooltip: 'Settings',
+                  onPressed: () => context.push('/settings'),
+                ),
+              // Debug button with better visibility
+              if (isOwnProfile)
+                IconButton(
+                  icon: const Icon(Icons.bug_report),
+                  tooltip: 'Debug Info',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.orange.withOpacity(0.2),
                   ),
+                  color: Colors.orange,
                   onPressed: () {
-                    context.push('/follow-requests');
-                  },
-                ),
-              if (isOwnProfile)
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () {
-                    // Pass current route as 'from' parameter
-                    context.push('/edit-profile',
-                        extra: {'from': '/profile/${widget.userId}'});
-                  },
-                ),
-              if (isOwnProfile)
-                IconButton(
-                  icon: const Icon(Icons.settings_outlined),
-                  onPressed: () {
-                    // TODO: Navigate to settings
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Settings coming soon')),
-                    );
+                    debugPrint('[ProfileScreen] Debug button pressed');
+                    debugPrint('[ProfileScreen] Current user: ${currentUser?.username}');
+                    debugPrint('[ProfileScreen] Profile user: ${user.username}');
+                    debugPrint('[ProfileScreen] Pending requests: ${pendingRequests.length}');
+                    debugPrint('[ProfileScreen] isOwnProfile: $isOwnProfile');
                   },
                 ),
             ],
           ),
           body: RefreshIndicator(
             onRefresh: _refreshProfile,
+            color: Theme.of(context).colorScheme.primary,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            strokeWidth: 3,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
@@ -324,16 +310,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .error
-                            .withOpacity(0.1),
+                        color: Theme.of(context).colorScheme.error.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .error
-                              .withOpacity(0.3),
+                          color: Theme.of(context).colorScheme.error.withOpacity(0.3),
                         ),
                       ),
                       child: Row(
@@ -365,22 +345,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
 
                   // Profile Header
-                  if (profileUser != null)
-                    _buildProfileHeader(
-                      context,
-                      profileUser,
-                      userStats,
-                      isOwnProfile,
-                      isFollowing,
-                      isRequestPending,
-                      userProvider.isLoading,
-                    ),
+                  _buildProfileHeader(
+                    context,
+                    user,
+                    stats,
+                    isOwnProfile,
+                    userProvider.getDetailedFollowStatus(widget.userId)?.isFollowing ?? false,
+                    userProvider.getDetailedFollowStatus(widget.userId)?.isRequestPending ?? false,
+                    userProvider.isLoading,
+                  ),
 
                   const SizedBox(height: 24),
 
                   // Trips Section
-                  if (profileUser != null)
-                    _buildTripsSection(context, profileUser, isOwnProfile),
+                  _buildTripsSection(context, user, isOwnProfile),
                 ],
               ),
             ),
@@ -566,7 +544,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         isFollowing 
                           ? 'Unfollow' 
                           : isRequestPending 
-                            ? 'Request Sent' 
+                            ? 'Cancel Request' 
                             : 'Follow'
                       ),
               ),
@@ -624,20 +602,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatColumn(BuildContext context, String count, String label) {
-    return Column(
-      children: [
-        Text(
-          count,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            count,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

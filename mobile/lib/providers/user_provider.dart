@@ -231,24 +231,29 @@ class UserProvider extends ChangeNotifier {
   // Fixed version of follow request loading
   Future<void> loadPendingFollowRequests() async {
     try {
+      debugPrint('[UserProvider] Starting to load pending follow requests');
       _isFollowRequestsLoading = true;
       _followRequestsError = null;
       notifyListeners();
 
       final response = await _apiService.getPendingFollowRequests();
+      debugPrint('[UserProvider] API response: success=${response.success}, error=${response.error}');
 
       if (response.success && response.data != null) {
         _pendingFollowRequests = response.data!;
         _followRequestsError = null;
+        debugPrint('[UserProvider] Loaded ${_pendingFollowRequests.length} pending follow requests');
       } else {
         _followRequestsError = response.error ?? 'Failed to load follow requests';
+        debugPrint('[UserProvider] Failed to load follow requests: $_followRequestsError');
       }
     } catch (e) {
       _followRequestsError = 'An unexpected error occurred';
-      debugPrint('Load pending follow requests error: $e');
+      debugPrint('[UserProvider] Load pending follow requests error: $e');
     } finally {
       _isFollowRequestsLoading = false;
       notifyListeners();
+      debugPrint('[UserProvider] Finished loading follow requests. Count: ${_pendingFollowRequests.length}');
     }
   }
 
@@ -462,6 +467,15 @@ class UserProvider extends ChangeNotifier {
       debugPrint('Follow user error: $e');
       return false;
     }
+  }
+
+  // Clear user search state
+  void clearUserSearch() {
+    _discoverUsers.clear();
+    _hasMoreUsers = false;
+    _discoverPage = 1;
+    _isDiscoverLoading = false;
+    notifyListeners();
   }
 
   // Send follow request for private users
