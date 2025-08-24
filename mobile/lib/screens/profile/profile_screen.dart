@@ -57,23 +57,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (detailedStatus == null || authProvider.currentUser == null) return;
 
     bool success = false;
+    String actionMessage = '';
+    
     if (detailedStatus.isFollowing) {
       success = await userProvider.unfollowUser(widget.userId,
           currentUserId: authProvider.currentUser!.id);
+      actionMessage = success ? 'Successfully unfollowed user' : 'Failed to unfollow user';
     } else if (detailedStatus.isRequestPending) {
       success = await userProvider.cancelFollowRequest(widget.userId);
+      actionMessage = success ? 'Follow request cancelled' : 'Failed to cancel follow request';
     } else {
       success = await userProvider.sendFollowRequest(widget.userId);
+      actionMessage = success ? 'Follow request sent' : 'Failed to send follow request';
     }
 
     if (!mounted) return;
-    if (!success && userProvider.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(userProvider.error!),
-          backgroundColor: Colors.red,
-        ),
-      );
+    
+    // Show appropriate message regardless of success/failure
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success ? actionMessage : (userProvider.error ?? 'An error occurred')),
+        backgroundColor: success ? Colors.green : Colors.red,
+      ),
+    );
+
+    // Force refresh of profile data to ensure UI is in sync
+    if (success) {
+      await userProvider.loadProfileData(widget.userId, authProvider.currentUser!.id);
     }
   }
 

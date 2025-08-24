@@ -710,11 +710,23 @@ class _DiscoverTabState extends State<DiscoverTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
+                        ),
+                        if (isPrivate)
+                          Icon(
+                            Icons.lock_outline,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                      ],
                     ),
                     Text(
                       '@$username',
@@ -742,18 +754,43 @@ class _DiscoverTabState extends State<DiscoverTab> {
               // Follow Button
               SizedBox(
                 width: 100,
-                child: ElevatedButton(
-                  onPressed: () => _toggleFollow(userId, isFollowing),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isFollowing
-                        ? Theme.of(context).colorScheme.error
-                        : Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Text(isFollowing ? 'Unfollow' : 'Follow'),
+                child: Consumer<UserProvider>(
+                  builder: (context, userProvider, child) {
+                    final isProcessing = userProvider.isProcessingRequestId == userId;
+                    final detailedStatus = userProvider.getDetailedFollowStatus(userId);
+                    final isRequestPending = detailedStatus?.isRequestPending ?? false;
+
+                    return ElevatedButton(
+                      onPressed: isProcessing ? null : () => _toggleFollow(userId, isFollowing),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isFollowing || isRequestPending
+                            ? Theme.of(context).colorScheme.outline
+                            : Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: isProcessing
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              isFollowing
+                                  ? 'Unfollow'
+                                  : isRequestPending
+                                      ? 'Cancel'
+                                      : isPrivate
+                                          ? 'Request'
+                                          : 'Follow',
+                            ),
+                    );
+                  },
                 ),
               ),
             ],
