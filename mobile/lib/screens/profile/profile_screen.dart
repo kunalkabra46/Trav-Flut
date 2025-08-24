@@ -170,10 +170,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool isOwnProfile,
     List<dynamic> pendingRequests,
   ) {
-    // The logic is now simple: if it's not your own profile, show nothing.
-    if (!isOwnProfile) {
-      return [];
-    }
+    // // The logic is now simple: if it's not your own profile, show nothing.
+    // if (!isOwnProfile) {
+    //   return [];
+    // }
     // Otherwise, build the action buttons.
     return [
       Stack(
@@ -184,30 +184,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
             tooltip: 'Follow Requests',
             onPressed: () => context.push('/follow-requests'),
           ),
-          if (pendingRequests.isNotEmpty)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(6),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 14,
+                minHeight: 14,
+              ),
+              child: Text(
+                '${pendingRequests.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 8,
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 14,
-                  minHeight: 14,
-                ),
-                child: Text(
-                  '${pendingRequests.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 8,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                textAlign: TextAlign.center,
               ),
             ),
+          ),
         ],
       ),
       IconButton(
