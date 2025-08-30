@@ -53,10 +53,10 @@ export async function POST(request: NextRequest) {
 
           if (existingFollow) {
             return NextResponse.json(
-              { 
-                success: false, 
+              {
+                success: false,
                 error: "Already following this user",
-                data: { id: existingFollow.id, status: "FOLLOWING" }
+                data: { id: existingFollow.id, status: "FOLLOWING" },
               },
               { status: 400 }
             );
@@ -66,21 +66,21 @@ export async function POST(request: NextRequest) {
           const existingRequest = await prisma.followRequest.findFirst({
             where: {
               followerId,
-              followingId: followeeId,
+              followeeId,
               status: "PENDING",
             },
           });
 
           if (existingRequest) {
             return NextResponse.json(
-              { 
-                success: true, 
+              {
+                success: true,
                 message: "Follow request already pending",
-                data: { 
-                  id: existingRequest.id, 
+                data: {
+                  id: existingRequest.id,
                   status: existingRequest.status,
-                  createdAt: existingRequest.createdAt
-                }
+                  createdAt: existingRequest.createdAt,
+                },
               },
               { status: 200 }
             );
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
           const followRequest = await prisma.followRequest.create({
             data: {
               followerId,
-              followingId: followeeId,
+              followeeId,
               status: "PENDING",
             },
           });
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
 
           const followRequests = await prisma.followRequest.findMany({
             where: {
-              followingId: userId,
+              followeeId: userId,
               status: "PENDING",
             },
             include: {
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
                   isPrivate: true,
                   createdAt: true,
                   updatedAt: true,
-                }
+                },
               },
             },
             orderBy: {
@@ -152,10 +152,10 @@ export async function GET(request: NextRequest) {
           });
 
           // Transform the data to match the expected API response format
-          const transformedRequests = followRequests.map(request => ({
+          const transformedRequests = followRequests.map((request) => ({
             id: request.id,
             followerId: request.followerId,
-            followeeId: request.followingId,
+            followeeId: request.followeeId,
             status: request.status,
             createdAt: request.createdAt.toISOString(),
             updatedAt: request.updatedAt.toISOString(),
@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
               isPrivate: request.follower.isPrivate,
               createdAt: request.follower.createdAt.toISOString(),
               updatedAt: request.follower.updatedAt.toISOString(),
-            }
+            },
           }));
 
           return NextResponse.json<ApiResponse>(

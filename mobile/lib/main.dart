@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tripthread/config/app_config.dart';
 import 'package:tripthread/providers/auth_provider.dart';
 import 'package:tripthread/providers/user_provider.dart';
 import 'package:tripthread/providers/trip_provider.dart';
@@ -28,6 +29,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
+    debugPrint('[main] Initializing environment configuration');
+    await AppConfig.initialize();
+    debugPrint('[main] Environment configuration initialized');
+
     debugPrint('[main] Initializing services');
 
     // Initialize services
@@ -266,7 +271,7 @@ class TripThreadAppRouter extends StatelessWidget {
         //     final tripId = state.pathParameters['tripId']!;
         //     return TripParticipantsScreen(tripId: tripId);
         //   },
-        // ),        
+        // ),
         GoRoute(
           path: '/follow-requests',
           builder: (context, state) {

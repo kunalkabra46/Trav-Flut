@@ -2,25 +2,19 @@ import 'package:dio/dio.dart';
 import 'package:tripthread/models/api_response.dart';
 import 'package:tripthread/models/trip.dart';
 import 'package:tripthread/services/storage_service.dart';
+import 'package:tripthread/config/app_config.dart';
 import 'dart:convert'; // Added for jsonEncode
 
 class TripService {
-  // static const String baseUrl = 'http://localhost:3000/api';
-  // static const String baseUrl = 'http://10.61.114.100:3000/api';
-  static const String baseUrl = 'http://192.168.0.111:3000/api';
-  // static const String baseUrl = 'http://192.168.0.111:3000/api';
-
   late final Dio _dio;
   StorageService? _storageService;
 
   TripService() {
     _dio = Dio(BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      baseUrl: AppConfig.apiBaseUrl,
+      connectTimeout: AppConfig.connectTimeout,
+      receiveTimeout: AppConfig.receiveTimeout,
+      headers: AppConfig.defaultHeaders,
     ));
 
     _setupInterceptors();

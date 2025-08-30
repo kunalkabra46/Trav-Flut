@@ -32,7 +32,7 @@ export async function PUT(
           }
 
           // Verify that current user is the target of the request
-          if (followRequest.followingId !== currentUserId) {
+          if (followRequest.followeeId !== currentUserId) {
             return NextResponse.json<ApiResponse>(
               {
                 success: false,
@@ -58,7 +58,7 @@ export async function PUT(
             prisma.follow.create({
               data: {
                 followerId: followRequest.followerId,
-                followeeId: followRequest.followingId,
+                followeeId: followRequest.followeeId,
               },
             }),
             prisma.followRequest.update({
