@@ -871,6 +871,18 @@ class ProfileTab extends StatelessWidget {
             title: const Text('Profile'),
             actions: [
               IconButton(
+                icon: const Icon(Icons.person),
+                onPressed: () async {
+                  final currentUser = await userProvider.getCurrentUser();
+                  if (currentUser != null) {
+                    await userProvider.getDetailedFollowStatus(currentUser.id);
+                  }
+                  if (context.mounted) {
+                    context.go('/follow-requests');
+                  }
+                },
+              ),
+              IconButton(
                 icon: const Icon(Icons.settings_outlined),
                 onPressed: () {
                   // TODO: Implement settings

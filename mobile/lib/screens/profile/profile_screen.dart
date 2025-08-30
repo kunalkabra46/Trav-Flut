@@ -57,23 +57,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (detailedStatus == null || authProvider.currentUser == null) return;
 
     bool success = false;
+    String actionMessage = '';
+    
     if (detailedStatus.isFollowing) {
       success = await userProvider.unfollowUser(widget.userId,
           currentUserId: authProvider.currentUser!.id);
+      actionMessage = success ? 'Successfully unfollowed user' : 'Failed to unfollow user';
     } else if (detailedStatus.isRequestPending) {
       success = await userProvider.cancelFollowRequest(widget.userId);
+      actionMessage = success ? 'Follow request cancelled' : 'Failed to cancel follow request';
     } else {
       success = await userProvider.sendFollowRequest(widget.userId);
+      actionMessage = success ? 'Follow request sent' : 'Failed to send follow request';
     }
 
     if (!mounted) return;
-    if (!success && userProvider.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(userProvider.error!),
-          backgroundColor: Colors.red,
-        ),
-      );
+    
+    // Show appropriate message regardless of success/failure
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success ? actionMessage : (userProvider.error ?? 'An error occurred')),
+        backgroundColor: success ? Colors.green : Colors.red,
+      ),
+    );
+
+    // Force refresh of profile data to ensure UI is in sync
+    if (success) {
+      await userProvider.loadProfileData(widget.userId, authProvider.currentUser!.id);
     }
   }
 
@@ -160,10 +170,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool isOwnProfile,
     List<dynamic> pendingRequests,
   ) {
-    // The logic is now simple: if it's not your own profile, show nothing.
-    if (!isOwnProfile) {
-      return [];
-    }
+    // // The logic is now simple: if it's not your own profile, show nothing.
+    // if (!isOwnProfile) {
+    //   return [];
+    // }
     // Otherwise, build the action buttons.
     return [
       Stack(
@@ -174,30 +184,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
             tooltip: 'Follow Requests',
             onPressed: () => context.push('/follow-requests'),
           ),
-          if (pendingRequests.isNotEmpty)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(6),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 14,
+                minHeight: 14,
+              ),
+              child: Text(
+                '${pendingRequests.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 8,
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 14,
-                  minHeight: 14,
-                ),
-                child: Text(
-                  '${pendingRequests.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 8,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                textAlign: TextAlign.center,
               ),
             ),
+          ),
         ],
       ),
       IconButton(
