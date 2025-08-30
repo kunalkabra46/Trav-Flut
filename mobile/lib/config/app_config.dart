@@ -4,18 +4,52 @@ import 'package:flutter/foundation.dart';
 class AppConfig {
   static const String _defaultBaseUrl = 'http://localhost:3000/api';
 
+  // For debugging: set this to true to bypass dotenv and use hardcoded values
+  static const bool _useHardcodedConfig = true;
+
+  // Hardcoded configuration for debugging
+  static const String _hardcodedBaseUrl = 'http://192.168.0.111:3000/api';
+
   // API Configuration
   static String get apiBaseUrl {
-    final url = dotenv.env['API_BASE_URL'] ?? _defaultBaseUrl;
-    if (kDebugMode) {
-      debugPrint('[AppConfig] Using API base URL: $url');
+    // Use hardcoded config if enabled
+    if (_useHardcodedConfig) {
+      if (kDebugMode) {
+        debugPrint(
+            '[AppConfig] Using hardcoded API base URL: $_hardcodedBaseUrl');
+      }
+      return _hardcodedBaseUrl;
     }
-    return url;
+
+    try {
+      final url = dotenv.env['API_BASE_URL'] ?? _defaultBaseUrl;
+      if (kDebugMode) {
+        debugPrint('[AppConfig] Using API base URL: $url');
+      }
+      return url;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AppConfig] Error getting API base URL, using default: $e');
+      }
+      return _defaultBaseUrl;
+    }
   }
 
   // Environment
   static String get environment {
-    return dotenv.env['ENVIRONMENT'] ?? 'development';
+    // Use hardcoded config if enabled
+    if (_useHardcodedConfig) {
+      return 'development';
+    }
+
+    try {
+      return dotenv.env['ENVIRONMENT'] ?? 'development';
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AppConfig] Error getting environment, using default: $e');
+      }
+      return 'development';
+    }
   }
 
   // Timeouts
@@ -51,16 +85,54 @@ class AppConfig {
   // Initialize environment variables
   static Future<void> initialize() async {
     try {
-      await dotenv.load(fileName: '.env');
-      if (kDebugMode) {
-        debugPrint('[AppConfig] Environment configuration loaded successfully');
-        debugPrint('[AppConfig] API Base URL: $apiBaseUrl');
-        debugPrint('[AppConfig] Environment: $environment');
+      // Try to load the .env file from multiple possible locations
+      bool loaded = false;
+
+      // Try different possible paths
+      final possiblePaths = [
+        '.env',
+        'assets/.env',
+        '../.env',
+      ];
+
+      for (final path in possiblePaths) {
+        try {
+          await dotenv.load(fileName: path);
+          loaded = true;
+          if (kDebugMode) {
+            debugPrint('[AppConfig] Successfully loaded .env from: $path');
+          }
+          break;
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('[AppConfig] Failed to load from $path: $e');
+          }
+        }
+      }
+
+      if (loaded) {
+        if (kDebugMode) {
+          debugPrint(
+              '[AppConfig] Environment configuration loaded successfully');
+          debugPrint('[AppConfig] API Base URL: $apiBaseUrl');
+          debugPrint('[AppConfig] Environment: $environment');
+        }
+      } else {
+        if (kDebugMode) {
+          debugPrint('[AppConfig] Could not load .env from any location');
+          debugPrint('[AppConfig] Using default configuration');
+        }
       }
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[AppConfig] Failed to load .env file: $e');
         debugPrint('[AppConfig] Using default configuration');
+      }
+
+      // Note: dotenv.env is read-only, so we can't set values on it
+      // The app will use the fallback values defined in the getters
+      if (kDebugMode) {
+        debugPrint('[AppConfig] Will use fallback values from getters');
       }
     }
   }

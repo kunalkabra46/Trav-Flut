@@ -36,14 +36,29 @@ void main() async {
     debugPrint('[main] Initializing services');
 
     // Initialize services
+    debugPrint('[main] Creating StorageService');
     final storageService = StorageService();
-    await storageService.init();
-    debugPrint('[main] StorageService initialized');
+    debugPrint('[main] Initializing StorageService');
+    try {
+      await storageService.init();
+      debugPrint('[main] StorageService initialized');
+    } catch (e) {
+      debugPrint('[main] StorageService initialization failed: $e');
+      throw e;
+    }
 
+    debugPrint('[main] Creating ConnectivityService');
     final connectivityService = ConnectivityService();
-    await connectivityService.initialize();
-    debugPrint('[main] ConnectivityService initialized');
+    debugPrint('[main] Initializing ConnectivityService');
+    try {
+      await connectivityService.initialize();
+      debugPrint('[main] ConnectivityService initialized');
+    } catch (e) {
+      debugPrint('[main] ConnectivityService initialization failed: $e');
+      throw e;
+    }
 
+    debugPrint('[main] Creating core services');
     final apiService = ApiService();
     final tripService = TripService();
     final mediaService = MediaService();

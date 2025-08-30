@@ -59,9 +59,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/
+  assets:
+    - .env
+    # - assets/images/
+    # - assets/icons/
 
   # fonts:
   #   - family: Inter
