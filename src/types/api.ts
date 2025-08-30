@@ -83,12 +83,21 @@ export interface TripResponse {
   startDate?: string | null;
   endDate?: string | null;
   destinations: string[];
-  mood?: "RELAXED" | "ADVENTURE" | "SPIRITUAL" | "CULTURAL" | "PARTY" | "MIXED" | null;
+  mood?:
+    | "RELAXED"
+    | "ADVENTURE"
+    | "SPIRITUAL"
+    | "CULTURAL"
+    | "PARTY"
+    | "MIXED"
+    | null;
   type?: "SOLO" | "GROUP" | "COUPLE" | "FAMILY" | null;
   coverMediaUrl?: string | null;
   status: "UPCOMING" | "ONGOING" | "ENDED";
   createdAt: string;
   updatedAt: string;
+  entryCount: number;
+  participantCount: number;
   user?: UserProfile | null;
   participants?: TripParticipantResponse[] | null;
   threadEntries?: TripThreadEntryResponse[] | null;

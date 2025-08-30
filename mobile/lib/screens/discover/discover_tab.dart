@@ -753,45 +753,74 @@ class _DiscoverTabState extends State<DiscoverTab> {
 
               // Follow Button
               SizedBox(
-                width: 100,
+                width: 110,
                 child: Consumer<UserProvider>(
                   builder: (context, userProvider, child) {
-                    final isProcessing = userProvider.isProcessingRequestId == userId;
-                    final detailedStatus = userProvider.getDetailedFollowStatus(userId);
-                    final isRequestPending = detailedStatus?.isRequestPending ?? false;
+                    final isProcessing =
+                        userProvider.isProcessingRequestId == userId;
+                    final detailedStatus =
+                        userProvider.getDetailedFollowStatus(userId);
+                    final isFollowing = detailedStatus?.isFollowing ??
+                        false; // Get the latest state
+                    final isRequestPending =
+                        detailedStatus?.isRequestPending ?? false;
+                    final isPrivate = detailedStatus?.isPrivate ?? false;
 
-                    return ElevatedButton(
-                      onPressed: isProcessing ? null : () => _toggleFollow(userId, isFollowing),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isFollowing || isRequestPending
-                            ? Theme.of(context).colorScheme.outline
-                            : Theme.of(context).colorScheme.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                    // STATE 1: Already following or request is pending (Use OutlinedButton)
+                    if (isFollowing || isRequestPending) {
+                      return OutlinedButton(
+                        onPressed: isProcessing
+                            ? null
+                            : () => _toggleFollow(userId, isFollowing),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor:
+                              Colors.grey[800], // Dark text for visibility
+                          side: BorderSide(color: Colors.grey[400]!),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                         ),
-                      ),
-                      child: isProcessing
-                          ? const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : Text(
-                              isFollowing
-                                  ? 'Unfollow'
-                                  : isRequestPending
-                                      ? 'Cancel'
-                                      : isPrivate
-                                          ? 'Request'
-                                          : 'Follow',
-                            ),
-                    );
-                  },
-                ),
+                        child: isProcessing
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text(isFollowing ? 'Following' : 'Requested'),
+                      );
+                    }
+
+                    // STATE 2: Not following (Use ElevatedButton)
+                    else {
+                      return ElevatedButton(
+                        onPressed: isProcessing
+                            ? null
+                            : () => _toggleFollow(userId, isFollowing),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor:
+                              Colors.white, // White text on dark background
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: isProcessing
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : Text(isPrivate ? 'Request' : 'Follow'),
+                      );
+                    }
+                  }
+                )
               ),
             ],
           ),
