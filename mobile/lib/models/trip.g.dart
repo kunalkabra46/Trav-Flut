@@ -41,6 +41,8 @@ Trip _$TripFromJson(Map<String, dynamic> json) => Trip(
       counts: json['counts'] == null
           ? null
           : TripCounts.fromJson(json['counts'] as Map<String, dynamic>),
+      entryCount: (json['entryCount'] as num?)?.toInt(),
+      participantCount: (json['participantCount'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$TripToJson(Trip instance) => <String, dynamic>{
@@ -62,6 +64,8 @@ Map<String, dynamic> _$TripToJson(Trip instance) => <String, dynamic>{
       'threadEntries': instance.threadEntries,
       'finalPost': instance.finalPost,
       'counts': instance.counts,
+      'entryCount': instance.entryCount,
+      'participantCount': instance.participantCount,
     };
 
 const _$TripMoodEnumMap = {

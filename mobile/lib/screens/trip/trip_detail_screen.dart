@@ -305,13 +305,13 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
               children: [
                 _buildStatItem(
                   Icons.photo_library,
-                  '${_trip!.counts?.threadEntries ?? 0}',
+                  '${_trip!.entryCount ?? 0}',
                   'Entries',
                 ),
                 const SizedBox(width: 24),
                 _buildStatItem(
                   Icons.people,
-                  '${_trip!.counts?.participants ?? 0}',
+                  '${_trip!.participantCount ?? 0}',
                   'Participants',
                 ),
                 if (_trip!.type != null) ...[
@@ -352,6 +352,15 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 },
                 icon: const Icon(Icons.add),
                 label: const Text('Add Entry'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: () {
+                  context.go('/trip/${widget.tripId}/participants',
+                      extra: {'from': '/trip/${widget.tripId}'});
+                },
+                icon: const Icon(Icons.people),
+                label: const Text('Manage Participants'),
               ),
               const SizedBox(height: 8),
               Consumer<TripProvider>(
