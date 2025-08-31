@@ -722,15 +722,15 @@ class TripsTab extends StatelessWidget {
                       _buildStatChip(
                         context,
                         Icons.timeline,
-                        '${trip.counts?.threadEntries ?? 0} entries',
+                        '${trip.entryCount ?? 0} entries',
                       ),
                       const SizedBox(width: 8),
-                      if (trip.counts?.participants != null &&
-                          trip.counts!.participants > 0)
+                      if (trip.participantCount != null &&
+                          trip.participantCount! > 0)
                         _buildStatChip(
                           context,
                           Icons.people,
-                          '${trip.counts!.participants} people',
+                          '${trip.participantCount} people',
                         ),
                     ],
                   ),
