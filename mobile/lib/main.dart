@@ -23,6 +23,7 @@ import 'package:tripthread/screens/trip/trip_participants_screen.dart';
 import 'package:tripthread/screens/profile/follow_requests_screen.dart';
 import 'package:tripthread/utils/app_theme.dart';
 import 'package:tripthread/utils/error_handler.dart';
+import 'package:tripthread/config/app_config.dart';
 
 void main() async {
   debugPrint('[main] Starting TripThread app initialization');
