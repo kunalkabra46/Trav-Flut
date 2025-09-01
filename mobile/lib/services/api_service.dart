@@ -267,6 +267,7 @@ class ApiService {
       );
     }
   }
+  
 
   Future<ApiResponse<User>> updateProfile({
     String? name,
@@ -1314,6 +1315,73 @@ class ApiService {
         success: false,
         error: 'An unexpected error occurred',
       );
+    }
+  }
+
+  // Participant Management Methods
+  Future<List<TripParticipant>> getTripParticipants(String tripId) async {
+    try {
+      debugPrint('[ApiService] Getting participants for trip: $tripId');
+      final response = await _dio.get('/trips/$tripId/participants');
+      debugPrint(
+          '[ApiService] Get participants response: ${response.statusCode}');
+
+      if (response.data['success'] && response.data['data'] != null) {
+        final participants = response.data['data'] as List<dynamic>;
+        return participants.map((p) => TripParticipant.fromJson(p)).toList();
+      } else {
+        throw Exception(response.data['error'] ?? 'Failed to get participants');
+      }
+    } on DioException catch (e) {
+      debugPrint('[ApiService] Get participants DioException: ${e.message}');
+      throw Exception(e.response?.data['error'] ?? 'Network error occurred');
+    } catch (e) {
+      debugPrint('[ApiService] Get participants unexpected error: $e');
+      throw Exception('An unexpected error occurred');
+    }
+  }
+
+  Future<void> addTripParticipant(String tripId, String userId) async {
+    try {
+      debugPrint('[ApiService] Adding participant $userId to trip: $tripId');
+      final response = await _dio.post('/trips/$tripId/participants', data: {
+        'userId': userId,
+        'role': 'member',
+      });
+      debugPrint(
+          '[ApiService] Add participant response: ${response.statusCode}');
+
+      if (!response.data['success']) {
+        throw Exception(response.data['error'] ?? 'Failed to add participant');
+      }
+    } on DioException catch (e) {
+      debugPrint('[ApiService] Add participant DioException: ${e.message}');
+      throw Exception(e.response?.data['error'] ?? 'Network error occurred');
+    } catch (e) {
+      debugPrint('[ApiService] Add participant unexpected error: $e');
+      throw Exception('An unexpected error occurred');
+    }
+  }
+
+  Future<void> removeTripParticipant(String tripId, String userId) async {
+    try {
+      debugPrint(
+          '[ApiService] Removing participant $userId from trip: $tripId');
+      final response =
+          await _dio.delete('/trips/$tripId/participants?userId=$userId');
+      debugPrint(
+          '[ApiService] Remove participant response: ${response.statusCode}');
+
+      if (!response.data['success']) {
+        throw Exception(
+            response.data['error'] ?? 'Failed to remove participant');
+      }
+    } on DioException catch (e) {
+      debugPrint('[ApiService] Remove participant DioException: ${e.message}');
+      throw Exception(e.response?.data['error'] ?? 'Network error occurred');
+    } catch (e) {
+      debugPrint('[ApiService] Remove participant unexpected error: $e');
+      throw Exception('An unexpected error occurred');
     }
   }
 }

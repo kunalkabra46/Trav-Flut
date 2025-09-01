@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tripthread/config/app_config.dart';
 import 'package:tripthread/providers/auth_provider.dart';
 import 'package:tripthread/providers/user_provider.dart';
 import 'package:tripthread/providers/trip_provider.dart';
@@ -20,6 +19,7 @@ import 'package:tripthread/screens/profile/edit_profile_screen.dart';
 import 'package:tripthread/screens/trip/create_trip_screen.dart';
 import 'package:tripthread/screens/trip/trip_detail_screen.dart';
 import 'package:tripthread/screens/trip/trip_thread_screen.dart';
+import 'package:tripthread/screens/trip/trip_participants_screen.dart';
 import 'package:tripthread/screens/profile/follow_requests_screen.dart';
 import 'package:tripthread/utils/app_theme.dart';
 import 'package:tripthread/utils/error_handler.dart';
@@ -280,13 +280,13 @@ class TripThreadAppRouter extends StatelessWidget {
             return TripThreadScreen(tripId: tripId);
           },
         ),
-        // GoRoute(
-        //   path: '/trip/:tripId/participants',
-        //   builder: (context, state) {
-        //     final tripId = state.pathParameters['tripId']!;
-        //     return TripParticipantsScreen(tripId: tripId);
-        //   },
-        // ),
+        GoRoute(
+          path: '/trip/:tripId/participants',
+          builder: (context, state) {
+            final tripId = state.pathParameters['tripId']!;
+            return TripParticipantsScreen(tripId: tripId);
+          },
+        ),
         GoRoute(
           path: '/follow-requests',
           builder: (context, state) {

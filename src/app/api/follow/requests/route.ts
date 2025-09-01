@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
           const existingRequest = await prisma.followRequest.findFirst({
             where: {
               followerId,
-              followeeId,
+              followeeId: followeeId,
               status: "PENDING",
             },
           });
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
           const followRequest = await prisma.followRequest.create({
             data: {
               followerId,
-              followeeId,
+              followeeId: followeeId,
               status: "PENDING",
             },
           });
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
                   isPrivate: true,
                   createdAt: true,
                   updatedAt: true,
-                },
+                }
               },
             },
             orderBy: {
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
           });
 
           // Transform the data to match the expected API response format
-          const transformedRequests = followRequests.map((request) => ({
+          const transformedRequests = followRequests.map(request => ({
             id: request.id,
             followerId: request.followerId,
             followeeId: request.followeeId,
@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
               isPrivate: request.follower.isPrivate,
               createdAt: request.follower.createdAt.toISOString(),
               updatedAt: request.follower.updatedAt.toISOString(),
-            },
+            }
           }));
 
           return NextResponse.json<ApiResponse>(
