@@ -265,10 +265,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                user.name ?? 'User',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
+             Flexible(
+               child: Text(
+                 user.name ?? 'User',
+                 style: Theme.of(context).textTheme.headlineMedium,
+                 overflow: TextOverflow.ellipsis,
+                 maxLines: 1,
+               ),
+             ),
               if (user.isPrivate) ...[
                 const SizedBox(width: 8),
                 Icon(
@@ -283,10 +287,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Username
           if (user.username != null) ...[
             const SizedBox(height: 4),
-            Text(
-              '@${user.username}',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+           Flexible(
+             child: Text(
+               '@${user.username}',
+               style: Theme.of(context).textTheme.bodyMedium,
+               overflow: TextOverflow.ellipsis,
+               maxLines: 1,
+             ),
+           ),
           ],
 
           // Bio

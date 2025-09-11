@@ -489,12 +489,14 @@ class _DiscoverTabState extends State<DiscoverTab> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildCompactStatusBadge(context, trip.status),
+                   Flexible(child: _buildCompactStatusBadge(context, trip.status)),
                     if (trip.mood != null)
-                      Text(
-                        _getTripMoodEmoji(trip.mood!),
-                        style: const TextStyle(fontSize: 16),
-                      ),
+                     Flexible(
+                       child: Text(
+                         _getTripMoodEmoji(trip.mood!),
+                         style: const TextStyle(fontSize: 16),
+                       ),
+                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -739,6 +741,8 @@ class _DiscoverTabState extends State<DiscoverTab> {
                       Text(
                         bio,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                               overflow: TextOverflow.ellipsis,
+                               maxLines: 1,
                               color: Colors.grey[600],
                             ),
                         maxLines: 2,
@@ -802,12 +806,16 @@ class _DiscoverTabState extends State<DiscoverTab> {
                               Theme.of(context).colorScheme.primary,
                           foregroundColor:
                               Colors.white, // White text on dark background
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: isProcessing
-                            ? const SizedBox(
+                       Expanded(
+                         child: Text(
+                           '@$username',
+                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                 color: Colors.grey[600],
+                               ),
+                           overflow: TextOverflow.ellipsis,
+                           maxLines: 1,
+                         ),
+                       ),
                                 height: 16,
                                 width: 16,
                                 child: CircularProgressIndicator(

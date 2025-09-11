@@ -57,7 +57,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
       });
 
       if (trip != null) {
-        await tripProvider.loadCurrentTripEntries();
+       await tripProvider.loadCurrentTripEntries(widget.tripId);
       }
     }
   }
@@ -70,13 +70,14 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
       case ThreadEntryType.text:
         if (_textController.text.trim().isNotEmpty) {
           success =
-              await tripProvider.addTextEntry(_textController.text.trim());
+             await tripProvider.addTextEntry(widget.tripId, _textController.text.trim());
           if (success) _textController.clear();
         }
         break;
       case ThreadEntryType.location:
         if (_locationController.text.trim().isNotEmpty) {
           success = await tripProvider.addLocationEntry(
+           widget.tripId,
             _locationController.text.trim(),
             notes: _textController.text.trim().isEmpty
                 ? null
@@ -100,6 +101,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
             final mediaUrl =
                 "https://example.com/placeholder-media.jpg"; // Placeholder
             success = await tripProvider.addMediaEntry(
+             widget.tripId,
               mediaUrl,
               caption: _textController.text.trim().isEmpty
                   ? null
@@ -130,6 +132,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
       case ThreadEntryType.checkin:
         if (_locationController.text.trim().isNotEmpty) {
           success = await tripProvider.addLocationEntry(
+           widget.tripId,
             _locationController.text.trim(),
             notes: _textController.text.trim().isEmpty
                 ? null
@@ -364,21 +367,29 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                   // Header
                   Row(
                     children: [
-                      Text(
-                        entry.author.name ?? 'User',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
+                     Expanded(
+                       child: Text(
+                         entry.author.name ?? 'User',
+                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                               fontWeight: FontWeight.w600,
+                             ),
+                         overflow: TextOverflow.ellipsis,
+                         maxLines: 1,
+                       ),
+                     ),
                       const SizedBox(width: 8),
                       _buildEntryTypeIcon(entry.type),
                       const Spacer(),
-                      Text(
-                        _formatDateTime(entry.createdAt),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                      ),
+                     Flexible(
+                       child: Text(
+                         _formatDateTime(entry.createdAt),
+                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                               color: Colors.grey[600],
+                             ),
+                         overflow: TextOverflow.ellipsis,
+                         maxLines: 1,
+                       ),
+                     ),
                     ],
                   ),
 
@@ -386,10 +397,12 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
 
                   // Content
                   if (entry.contentText != null) ...[
-                    Text(
-                      entry.contentText!,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
+                   Text(
+                     entry.contentText!,
+                     style: Theme.of(context).textTheme.bodyMedium,
+                     overflow: TextOverflow.ellipsis,
+                     maxLines: 3,
+                   ),
                     const SizedBox(height: 8),
                   ],
 
@@ -414,14 +427,18 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                             color: Theme.of(context).colorScheme.primary,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            entry.locationName!,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 12,
-                            ),
-                          ),
+                         Expanded(
+                           child: Text(
+                             entry.locationName!,
+                             style: TextStyle(
+                               color: Theme.of(context).colorScheme.primary,
+                               fontWeight: FontWeight.w500,
+                               fontSize: 12,
+                             ),
+                             overflow: TextOverflow.ellipsis,
+                             maxLines: 1,
+                           ),
+                         ),
                         ],
                       ),
                     ),
@@ -433,12 +450,25 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                       margin: const EdgeInsets.only(top: 8),
                       height: 200,
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Center(
-                        child: Icon(Icons.image, size: 48, color: Colors.grey),
-                      ),
+                     child: ClipRRect(
+                       borderRadius: BorderRadius.circular(8),
+                       child: Image.network(
+                         entry.mediaUrl!,
+                         fit: BoxFit.cover,
+                         width: double.infinity,
+                         height: double.infinity,
+                         errorBuilder: (context, error, stackTrace) {
+                           return Container(
+                             color: Colors.grey[200],
+                             child: const Center(
+                               child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                             ),
+                           );
+                         },
+                       ),
+                     ),
                     ),
 
                   // Tagged users

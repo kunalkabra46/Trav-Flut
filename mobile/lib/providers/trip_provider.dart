@@ -156,11 +156,10 @@ class TripProvider extends ChangeNotifier {
   }
 
   // Load thread entries for current trip
-  Future<void> loadCurrentTripEntries() async {
-    if (_currentTrip == null) return;
+ Future<void> loadCurrentTripEntries(String tripId) async {
 
     try {
-      final response = await _tripService.getThreadEntries(_currentTrip!.id);
+     final response = await _tripService.getThreadEntries(tripId);
 
       if (response.success && response.data != null) {
         _currentTripEntries = response.data!;
@@ -177,12 +176,11 @@ class TripProvider extends ChangeNotifier {
   }
 
   // Add thread entry
-  Future<bool> addThreadEntry(CreateThreadEntryRequest request) async {
-    if (_currentTrip == null) return false;
+ Future<bool> addThreadEntry(String tripId, CreateThreadEntryRequest request) async {
 
     try {
       final response =
-          await _tripService.createThreadEntry(_currentTrip!.id, request);
+         await _tripService.createThreadEntry(tripId, request);
 
       if (response.success && response.data != null) {
         _currentTripEntries.add(response.data!);
@@ -202,16 +200,16 @@ class TripProvider extends ChangeNotifier {
   }
 
   // Add text entry
-  Future<bool> addTextEntry(String text) async {
-    return await addThreadEntry(CreateThreadEntryRequest(
+ Future<bool> addTextEntry(String tripId, String text) async {
+   return await addThreadEntry(tripId, CreateThreadEntryRequest(
       type: ThreadEntryType.text,
       contentText: text,
     ));
   }
 
   // Add media entry
-  Future<bool> addMediaEntry(String mediaUrl, {String? caption}) async {
-    return await addThreadEntry(CreateThreadEntryRequest(
+ Future<bool> addMediaEntry(String tripId, String mediaUrl, {String? caption}) async {
+   return await addThreadEntry(tripId, CreateThreadEntryRequest(
       type: ThreadEntryType.media,
       mediaUrl: mediaUrl,
       contentText: caption,
@@ -220,12 +218,13 @@ class TripProvider extends ChangeNotifier {
 
   // Add location entry
   Future<bool> addLocationEntry(
+   String tripId,
     String locationName, {
     double? lat,
     double? lng,
     String? notes,
   }) async {
-    return await addThreadEntry(CreateThreadEntryRequest(
+   return await addThreadEntry(tripId, CreateThreadEntryRequest(
       type: ThreadEntryType.location,
       locationName: locationName,
       gpsCoordinates: lat != null && lng != null

@@ -474,26 +474,30 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildEntryTypeIcon(entry.type),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+                 if (entry.contentText != null)
+                   Text(
+                     entry.contentText!,
+                     style: Theme.of(context).textTheme.bodyMedium,
+                     maxLines: 2,
+                     overflow: TextOverflow.ellipsis,
+                   ),
                 if (entry.contentText != null)
-                  Text(
-                    entry.contentText!,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                   Text(
+                     '📍 ${entry.locationName}',
+                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                           color: Theme.of(context).colorScheme.primary,
+                         ),
+                     overflow: TextOverflow.ellipsis,
+                     maxLines: 1,
+                   ),
                 if (entry.locationName != null)
                   Text(
                     '📍 ${entry.locationName}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.primary,
                         ),
+                   overflow: TextOverflow.ellipsis,
+                   maxLines: 1,
                   ),
                 const SizedBox(height: 4),
                 Text(
