@@ -685,6 +685,8 @@ class TripsTab extends StatelessWidget {
                               Theme.of(context).textTheme.titleLarge?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
                         ),
                       ),
                       _buildStatusBadge(context, trip.status),
