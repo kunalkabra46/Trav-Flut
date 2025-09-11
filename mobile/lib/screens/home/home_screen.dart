@@ -685,8 +685,6 @@ class TripsTab extends StatelessWidget {
                               Theme.of(context).textTheme.titleLarge?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 2,
                         ),
                       ),
                       _buildStatusBadge(context, trip.status),
@@ -1122,6 +1120,8 @@ class ProfileTab extends StatelessWidget {
                                                   ?.copyWith(
                                                     fontWeight: FontWeight.w600,
                                                   ),
+                                             overflow: TextOverflow.ellipsis,
+                                             maxLines: 1,
                                             ),
                                             Text(
                                               trip.destinations.join(', '),
@@ -1131,6 +1131,8 @@ class ProfileTab extends StatelessWidget {
                                                   ?.copyWith(
                                                     color: Colors.grey[600],
                                                   ),
+                                             overflow: TextOverflow.ellipsis,
+                                             maxLines: 1,
                                             ),
                                           ],
                                         ),
