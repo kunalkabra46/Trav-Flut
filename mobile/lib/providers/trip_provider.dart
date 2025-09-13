@@ -156,11 +156,12 @@ class TripProvider extends ChangeNotifier {
   }
 
   // Load thread entries for current trip
-  Future<void> loadCurrentTripEntries() async {
-    if (_currentTrip == null) return;
+  Future<void> loadCurrentTripEntries([String? tripId]) async {
+    final id = tripId ?? _currentTrip?.id;
+    if (id == null) return;
 
     try {
-      final response = await _tripService.getThreadEntries(_currentTrip!.id);
+      final response = await _tripService.getThreadEntries(id);
 
       if (response.success && response.data != null) {
         _currentTripEntries = response.data!;
@@ -177,12 +178,13 @@ class TripProvider extends ChangeNotifier {
   }
 
   // Add thread entry
-  Future<bool> addThreadEntry(CreateThreadEntryRequest request) async {
-    if (_currentTrip == null) return false;
+  Future<bool> addThreadEntry(CreateThreadEntryRequest request,
+      {String? tripId}) async {
+    final id = tripId ?? _currentTrip?.id;
+    if (id == null) return false;
 
     try {
-      final response =
-          await _tripService.createThreadEntry(_currentTrip!.id, request);
+      final response = await _tripService.createThreadEntry(id, request);
 
       if (response.success && response.data != null) {
         _currentTripEntries.add(response.data!);
@@ -202,20 +204,25 @@ class TripProvider extends ChangeNotifier {
   }
 
   // Add text entry
-  Future<bool> addTextEntry(String text) async {
-    return await addThreadEntry(CreateThreadEntryRequest(
-      type: ThreadEntryType.text,
-      contentText: text,
-    ));
+  Future<bool> addTextEntry(String text, {String? tripId}) async {
+    return await addThreadEntry(
+        CreateThreadEntryRequest(
+          type: ThreadEntryType.text,
+          contentText: text,
+        ),
+        tripId: tripId);
   }
 
   // Add media entry
-  Future<bool> addMediaEntry(String mediaUrl, {String? caption}) async {
-    return await addThreadEntry(CreateThreadEntryRequest(
-      type: ThreadEntryType.media,
-      mediaUrl: mediaUrl,
-      contentText: caption,
-    ));
+  Future<bool> addMediaEntry(String mediaUrl,
+      {String? caption, String? tripId}) async {
+    return await addThreadEntry(
+        CreateThreadEntryRequest(
+          type: ThreadEntryType.media,
+          mediaUrl: mediaUrl,
+          contentText: caption,
+        ),
+        tripId: tripId);
   }
 
   // Add location entry
@@ -224,15 +231,18 @@ class TripProvider extends ChangeNotifier {
     double? lat,
     double? lng,
     String? notes,
+    String? tripId,
   }) async {
-    return await addThreadEntry(CreateThreadEntryRequest(
-      type: ThreadEntryType.location,
-      locationName: locationName,
-      gpsCoordinates: lat != null && lng != null
-          ? GpsCoordinates(lat: lat, lng: lng)
-          : null,
-      contentText: notes,
-    ));
+    return await addThreadEntry(
+        CreateThreadEntryRequest(
+          type: ThreadEntryType.location,
+          locationName: locationName,
+          gpsCoordinates: lat != null && lng != null
+              ? GpsCoordinates(lat: lat, lng: lng)
+              : null,
+          contentText: notes,
+        ),
+        tripId: tripId);
   }
 
   // Get trip by ID
