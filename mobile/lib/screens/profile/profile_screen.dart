@@ -396,7 +396,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Icon(
                         Icons.lock_outlined,
                         size: 32,
-                        color: Colors.grey[600],
+                        color: Colors.grey[700],
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -404,14 +404,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
+                                  color: Colors.grey[800],
                                 ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Follow to see their trips and posts',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[600],
+                              color: Colors.grey[700],
                             ),
                         textAlign: TextAlign.center,
                       ),
@@ -423,6 +423,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: isLoading ? null : _handleFollowToggle,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                     child: const Text('Send Follow Request'),
                   ),
                 ),

@@ -812,10 +812,9 @@ class _DiscoverTabState extends State<DiscoverTab> {
                     final detailedStatus =
                         userProvider.getDetailedFollowStatus(userId);
                     final isFollowing = detailedStatus?.isFollowing ??
-                        false; // Get the latest state
+                        isFollowing; // Use the passed parameter as fallback
                     final isRequestPending =
                         detailedStatus?.isRequestPending ?? false;
-                    final isPrivate = detailedStatus?.isPrivate ?? false;
 
                     // STATE 1: Already following or request is pending (Use OutlinedButton)
                     if (isFollowing || isRequestPending) {
@@ -830,7 +829,7 @@ class _DiscoverTabState extends State<DiscoverTab> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         ),
                         child: isProcessing
                             ? const SizedBox(
@@ -845,14 +844,15 @@ class _DiscoverTabState extends State<DiscoverTab> {
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
-                                overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                       );
                     }
 
                     // STATE 2: Not following (Use ElevatedButton)
                     else {
+                      final isPrivate = user['isPrivate'] ?? false;
                       return ElevatedButton(
                         onPressed: isProcessing
                             ? null
@@ -864,7 +864,7 @@ class _DiscoverTabState extends State<DiscoverTab> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         ),
                         child: isProcessing
                             ? const SizedBox(
@@ -882,8 +882,8 @@ class _DiscoverTabState extends State<DiscoverTab> {
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
-                                overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                       );
                     }
