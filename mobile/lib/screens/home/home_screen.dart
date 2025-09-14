@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:tripthread/providers/auth_provider.dart';
 import 'package:tripthread/providers/trip_provider.dart';
 import 'package:tripthread/providers/feed_provider.dart';
-import 'package:tripthread/models/trip.dart';
 import 'package:tripthread/providers/user_provider.dart';
+import 'package:tripthread/models/trip.dart';
 import 'package:tripthread/screens/discover/discover_tab.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -152,10 +152,56 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
               // TODO: Implement search
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Implement notifications
+          // Combined Notification Icon
+          Consumer2<UserProvider, TripProvider>(
+            builder: (context, userProvider, tripProvider, child) {
+              final totalPending = userProvider.pendingFollowRequests.length +
+                  tripProvider.pendingTripInvitations.length;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () {
+                      // Navigate based on what notifications are available
+                      if (userProvider.pendingFollowRequests.isNotEmpty) {
+                        context.push('/follow-requests');
+                      } else if (tripProvider
+                          .pendingTripInvitations.isNotEmpty) {
+                        context.push('/trip-invites');
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('No new notifications')),
+                        );
+                      }
+                    },
+                  ),
+                  if (totalPending > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 14,
+                          minHeight: 14,
+                        ),
+                        child: Text(
+                          '$totalPending',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
             },
           ),
         ],

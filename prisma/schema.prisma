@@ -36,6 +36,10 @@ model User {
   threadEntries  TripThreadEntry[]
   threadTags     TripThreadTag[]
   media          Media[]
+  
+  // Trip join request relations
+  sentTripJoinRequests     TripJoinRequest[] @relation("SentTripJoinRequests")
+  receivedTripJoinRequests TripJoinRequest[] @relation("ReceivedTripJoinRequests")
 
   @@map("users")
 }
@@ -139,6 +143,12 @@ enum MediaType {
   VIDEO
 }
 
+enum TripJoinRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model Trip {
   id             String             @id @default(uuid())
   userId         String
@@ -161,6 +171,7 @@ model Trip {
   media          Media[]
   finalPost      TripFinalPost?
   participants   TripParticipant[]
+  joinRequests   TripJoinRequest[]
 
   @@map("trips")
 }
@@ -240,4 +251,21 @@ model Media {
   threadEntries   TripThreadEntry[]
 
   @@map("media")
+}
+
+model TripJoinRequest {
+  id          String                @id @default(uuid())
+  tripId      String
+  senderId    String
+  receiverId  String
+  status      TripJoinRequestStatus @default(PENDING)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  trip        Trip                  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  sender      User                  @relation("SentTripJoinRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User                  @relation("ReceivedTripJoinRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, receiverId])
+  @@map("trip_join_requests")
 }

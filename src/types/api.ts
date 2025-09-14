@@ -162,7 +162,14 @@ export interface CreateTripRequest {
   startDate?: string | null;
   endDate?: string | null;
   destinations: string[];
-  mood?: "RELAXED" | "ADVENTURE" | "SPIRITUAL" | "CULTURAL" | "PARTY" | "MIXED" | null;
+  mood?:
+    | "RELAXED"
+    | "ADVENTURE"
+    | "SPIRITUAL"
+    | "CULTURAL"
+    | "PARTY"
+    | "MIXED"
+    | null;
   type?: "SOLO" | "GROUP" | "COUPLE" | "FAMILY" | null;
   coverMediaUrl?: string | null;
 }
@@ -185,4 +192,27 @@ export interface UpdateFinalPostRequest {
   summaryText: string;
   curatedMedia: string[];
   caption?: string | null;
+}
+
+// Trip Join Request Types
+export interface TripJoinRequestDto {
+  id: string;
+  tripId: string;
+  senderId: string;
+  receiverId: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED";
+  createdAt: string;
+  updatedAt: string;
+  trip?: {
+    id: string;
+    title: string;
+    coverMediaUrl?: string;
+    userId: string;
+    destinations: string[];
+    status: "UPCOMING" | "ONGOING" | "ENDED";
+    startDate?: string;
+    endDate?: string;
+  };
+  sender?: UserProfile;
+  receiver?: UserProfile;
 }
