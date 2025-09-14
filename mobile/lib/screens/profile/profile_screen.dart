@@ -58,39 +58,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     bool success = false;
     String actionMessage = '';
-    
+
     if (detailedStatus.isFollowing) {
       success = await userProvider.unfollowUser(widget.userId,
           currentUserId: authProvider.currentUser!.id);
-      actionMessage = success ? 'Successfully unfollowed user' : 'Failed to unfollow user';
+      actionMessage =
+          success ? 'Successfully unfollowed user' : 'Failed to unfollow user';
     } else if (detailedStatus.isRequestPending) {
       success = await userProvider.cancelFollowRequest(widget.userId);
-      actionMessage = success ? 'Follow request cancelled' : 'Failed to cancel follow request';
+      actionMessage = success
+          ? 'Follow request cancelled'
+          : 'Failed to cancel follow request';
     } else {
       success = await userProvider.sendFollowRequest(widget.userId);
-      actionMessage = success ? 'Follow request sent' : 'Failed to send follow request';
+      actionMessage =
+          success ? 'Follow request sent' : 'Failed to send follow request';
     }
 
     if (!mounted) return;
-    
+
     // Show appropriate message regardless of success/failure
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(success ? actionMessage : (userProvider.error ?? 'An error occurred')),
+        content: Text(success
+            ? actionMessage
+            : (userProvider.error ?? 'An error occurred')),
         backgroundColor: success ? Colors.green : Colors.red,
       ),
     );
 
     // Force refresh of profile data to ensure UI is in sync
     if (success) {
-      await userProvider.loadProfileData(widget.userId, authProvider.currentUser!.id);
+      await userProvider.loadProfileData(
+          widget.userId, authProvider.currentUser!.id);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     debugPrint(
-    '[ProfileScreen] Build method called for userId: ${widget.userId}');
+        '[ProfileScreen] Build method called for userId: ${widget.userId}');
 
     // Consumer2 listens to both Auth and User providers for state changes.
     return Consumer2<AuthProvider, UserProvider>(
@@ -101,7 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final detailedStatus =
             userProvider.getDetailedFollowStatus(widget.userId);
         final isOwnProfile = currentUser?.id == widget.userId;
-        
+
         // Display a loading indicator only if the main user data is not yet available.
         if (userProvider.isLoading && user == null) {
           return const Scaffold(
@@ -125,42 +132,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         }
 
-        debugPrint('[ProfileScreen] isOwnProfile: $isOwnProfile (currentUserId: ${currentUser?.id})');
+        debugPrint(
+            '[ProfileScreen] isOwnProfile: $isOwnProfile (currentUserId: ${currentUser?.id})');
         // debugPrint('[ProfileScreen] pendingRequests: ${}');
 
         return Scaffold(
-          appBar: AppBar(
-            title: Text(user.username ?? 'Profile'),
-            actions: _buildAppBarActions(
-              context,
-              isOwnProfile,
-              userProvider.pendingFollowRequests, // Data comes directly from the provider.
-            ),
-          ),
-
-          body: RefreshIndicator(
-            onRefresh: _refreshProfile,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _buildProfileHeader(
-                    context,
-                    user,
-                    stats,
-                    isOwnProfile,
-                    detailedStatus?.isFollowing ?? false,
-                    detailedStatus?.isRequestPending ?? false,
-                    userProvider.isLoading, // Pass loading state for the button.
-                  ),
-                  const SizedBox(height: 24),
-                  _buildTripsSection(context, user, isOwnProfile),
-                ],
+            appBar: AppBar(
+              title: Text(user.username ?? 'Profile'),
+              actions: _buildAppBarActions(
+                context,
+                isOwnProfile,
+                userProvider
+                    .pendingFollowRequests, // Data comes directly from the provider.
               ),
             ),
-          )
-        );
+            body: RefreshIndicator(
+              onRefresh: _refreshProfile,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _buildProfileHeader(
+                      context,
+                      user,
+                      stats,
+                      isOwnProfile,
+                      detailedStatus?.isFollowing ?? false,
+                      detailedStatus?.isRequestPending ?? false,
+                      userProvider
+                          .isLoading, // Pass loading state for the button.
+                    ),
+                    const SizedBox(height: 24),
+                    _buildTripsSection(context, user, isOwnProfile),
+                  ],
+                ),
+              ),
+            ));
       },
     );
   }
@@ -265,9 +273,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                user.name ?? 'User',
-                style: Theme.of(context).textTheme.headlineMedium,
+              Flexible(
+                child: Text(
+                  user.name ?? 'User',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
               if (user.isPrivate) ...[
                 const SizedBox(width: 8),
@@ -283,9 +295,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Username
           if (user.username != null) ...[
             const SizedBox(height: 4),
-            Text(
-              '@${user.username}',
-              style: Theme.of(context).textTheme.bodyMedium,
+            Flexible(
+              child: Text(
+                '@${user.username}',
+                style: Theme.of(context).textTheme.bodyMedium,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
             ),
           ],
 
@@ -348,9 +364,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 8),
                       Text(
                         'This account is private',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -389,13 +406,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(
-                        isFollowing 
-                          ? 'Unfollow' 
-                          : isRequestPending 
-                            ? 'Cancel Request' 
-                            : 'Follow'
-                      ),
+                    : Text(isFollowing
+                        ? 'Unfollow'
+                        : isRequestPending
+                            ? 'Cancel Request'
+                            : 'Follow'),
               ),
             ),
         ],

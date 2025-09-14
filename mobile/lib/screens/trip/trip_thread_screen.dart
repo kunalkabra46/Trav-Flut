@@ -57,7 +57,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
       });
 
       if (trip != null) {
-        await tripProvider.loadCurrentTripEntries();
+        await tripProvider.loadCurrentTripEntries(widget.tripId);
       }
     }
   }
@@ -69,8 +69,8 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
     switch (_selectedType) {
       case ThreadEntryType.text:
         if (_textController.text.trim().isNotEmpty) {
-          success =
-              await tripProvider.addTextEntry(_textController.text.trim());
+          success = await tripProvider.addTextEntry(_textController.text.trim(),
+              tripId: widget.tripId);
           if (success) _textController.clear();
         }
         break;
@@ -81,6 +81,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
             notes: _textController.text.trim().isEmpty
                 ? null
                 : _textController.text.trim(),
+            tripId: widget.tripId,
           );
           if (success) {
             _locationController.clear();
@@ -104,6 +105,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
               caption: _textController.text.trim().isEmpty
                   ? null
                   : _textController.text.trim(),
+              tripId: widget.tripId,
             );
 
             if (success) {
@@ -134,6 +136,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
             notes: _textController.text.trim().isEmpty
                 ? null
                 : _textController.text.trim(),
+            tripId: widget.tripId,
           );
           if (success) {
             _locationController.clear();
@@ -266,36 +269,85 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
 
                 if (entries.isEmpty) {
                   return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.timeline,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No entries yet',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                color: Colors.grey[600],
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer
+                                  .withOpacity(0.3),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.timeline,
+                              size: 64,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'No entries yet',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            canAddEntries
+                                ? 'Start documenting your journey!\nShare your experiences, photos, and locations.'
+                                : 'This trip has no entries yet.\nCheck back later for updates.',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.7),
+                                  height: 1.5,
+                                ),
+                            textAlign: TextAlign.center,
+                          ),
+                          if (canAddEntries) ...[
+                            const SizedBox(height: 24),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                // Scroll to bottom to show add entry section
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.animateTo(
+                                      _scrollController
+                                          .position.maxScrollExtent,
+                                      duration:
+                                          const Duration(milliseconds: 300),
+                                      curve: Curves.easeOut,
+                                    );
+                                  }
+                                });
+                              },
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add First Entry'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
                               ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          canAddEntries
-                              ? 'Start documenting your journey!'
-                              : 'This trip has no entries yet',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.grey[500],
-                                  ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   );
                 }
@@ -364,20 +416,30 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                   // Header
                   Row(
                     children: [
-                      Text(
-                        entry.author.name ?? 'User',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                      Flexible(
+                        child: Text(
+                          entry.author.name ?? 'User',
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildEntryTypeIcon(entry.type),
-                      const Spacer(),
-                      Text(
-                        _formatDateTime(entry.createdAt),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          _formatDateTime(entry.createdAt),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
                     ],
                   ),
@@ -389,6 +451,8 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                     Text(
                       entry.contentText!,
                       style: Theme.of(context).textTheme.bodyMedium,
+                      overflow: TextOverflow.visible,
+                      maxLines: null,
                     ),
                     const SizedBox(height: 8),
                   ],
@@ -396,6 +460,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                   // Location
                   if (entry.locationName != null)
                     Container(
+                      margin: const EdgeInsets.only(top: 8),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
@@ -414,30 +479,76 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                             color: Theme.of(context).colorScheme.primary,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            entry.locationName!,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 12,
+                          Flexible(
+                            child: Text(
+                              entry.locationName!,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                  // Media placeholder
+                  // Media display
                   if (entry.type == ThreadEntryType.media &&
                       entry.mediaUrl != null)
                     Container(
                       margin: const EdgeInsets.only(top: 8),
-                      height: 200,
+                      constraints: const BoxConstraints(
+                        maxHeight: 300,
+                        minHeight: 150,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Center(
-                        child: Icon(Icons.image, size: 48, color: Colors.grey),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          entry.mediaUrl!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              height: 200,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes !=
+                                          null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 150,
+                              child: const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.broken_image,
+                                        size: 48, color: Colors.grey),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Failed to load image',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
 
@@ -448,15 +559,21 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                       margin: const EdgeInsets.only(top: 8),
                       child: Wrap(
                         spacing: 4,
+                        runSpacing: 4,
                         children: entry.taggedUsers!.map((user) {
                           return Chip(
                             label: Text(
                               '@${user.username ?? user.name ?? 'User'}',
                               style: const TextStyle(fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
                             ),
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
                             visualDensity: VisualDensity.compact,
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .secondaryContainer
+                                .withOpacity(0.3),
                           );
                         }).toList(),
                       ),
@@ -495,7 +612,12 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                       children: [
                         _buildEntryTypeIcon(type),
                         const SizedBox(width: 4),
-                        Text(_getEntryTypeLabel(type)),
+                        Flexible(
+                          child: Text(
+                            _getEntryTypeLabel(type),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                     selected: isSelected,
@@ -608,41 +730,98 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                     ),
                   ] else ...[
                     // Media picker buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _pickImage(fromCamera: false),
-                            icon: const Icon(Icons.photo_library),
-                            label: const Text('Gallery'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _pickImage(fromCamera: true),
-                            icon: const Icon(Icons.camera_alt),
-                            label: const Text('Camera'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _pickVideo,
-                            icon: const Icon(Icons.video_file),
-                            label: const Text('Video'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWide = constraints.maxWidth > 400;
+                        return isWide
+                            ? Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _pickImage(fromCamera: false),
+                                      icon: const Icon(Icons.photo_library),
+                                      label: const Text('Gallery'),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _pickImage(fromCamera: true),
+                                      icon: const Icon(Icons.camera_alt),
+                                      label: const Text('Camera'),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: _pickVideo,
+                                      icon: const Icon(Icons.video_file),
+                                      label: const Text('Video'),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () =>
+                                              _pickImage(fromCamera: false),
+                                          icon: const Icon(Icons.photo_library),
+                                          label: const Text('Gallery'),
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 12),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () =>
+                                              _pickImage(fromCamera: true),
+                                          icon: const Icon(Icons.camera_alt),
+                                          label: const Text('Camera'),
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 12),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: _pickVideo,
+                                      icon: const Icon(Icons.video_file),
+                                      label: const Text('Video'),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                      },
                     ),
                   ],
                 ],
