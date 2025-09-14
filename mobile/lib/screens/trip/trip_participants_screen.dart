@@ -6,7 +6,6 @@ import 'package:tripthread/providers/trip_provider.dart';
 import 'package:tripthread/models/trip.dart';
 import 'package:tripthread/models/user.dart';
 import 'package:tripthread/services/api_service.dart';
-import 'package:tripthread/widgets/loading_button.dart';
 
 class TripParticipantsScreen extends StatefulWidget {
   final String tripId;
@@ -33,6 +32,16 @@ class _TripParticipantsScreenState extends State<TripParticipantsScreen> {
   void initState() {
     super.initState();
     _loadParticipants();
+    _loadSentInvitations();
+  }
+
+  Future<void> _loadSentInvitations() async {
+    try {
+      final tripProvider = context.read<TripProvider>();
+      await tripProvider.loadSentTripInvitations(widget.tripId);
+    } catch (e) {
+      debugPrint('Failed to load sent invitations: $e');
+    }
   }
 
   @override
@@ -82,7 +91,8 @@ class _TripParticipantsScreenState extends State<TripParticipantsScreen> {
       });
 
       final apiService = context.read<ApiService>();
-      final response = await apiService.searchUsers(search: query);
+      final response =
+          await apiService.searchUsers(search: query, prioritizeFollowed: true);
 
       if (mounted) {
         if (response.success && response.data != null) {
@@ -125,30 +135,83 @@ class _TripParticipantsScreenState extends State<TripParticipantsScreen> {
     }
   }
 
-  Future<void> _addParticipant(String userId) async {
+  Future<void> _sendInvitation(String receiverId) async {
     try {
-      final apiService = context.read<ApiService>();
-      await apiService.addTripParticipant(widget.tripId, userId);
+      final tripProvider = context.read<TripProvider>();
+      final success =
+          await tripProvider.sendTripInvitation(widget.tripId, receiverId);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Participant added successfully!')),
-        );
-
-        // Reload participants and clear search
-        await _loadParticipants();
-        _searchController.clear();
-        setState(() {
-          _searchResults = [];
-        });
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invitation sent successfully!')),
+          );
+          // Refresh search results to update UI state
+          if (_searchController.text.isNotEmpty) {
+            _searchUsers(_searchController.text);
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content:
+                    Text(tripProvider.error ?? 'Failed to send invitation')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add participant: ${e.toString()}')),
+          SnackBar(content: Text('Failed to send invitation: ${e.toString()}')),
         );
       }
     }
+  }
+
+  bool _hasInvitationBeenSent(String userId) {
+    final tripProvider = context.read<TripProvider>();
+    return tripProvider.sentTripInvitations.any(
+      (invitation) =>
+          invitation.receiverId == userId && invitation.tripId == widget.tripId,
+    );
+  }
+
+  Widget _getInvitationButton(User user) {
+    final hasInvitationBeenSent = _hasInvitationBeenSent(user.id);
+
+    if (hasInvitationBeenSent) {
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              color: Colors.grey[600],
+              size: 16,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Sent',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return IconButton(
+      onPressed: () => _sendInvitation(user.id),
+      icon: const Icon(Icons.person_add),
+      color: Theme.of(context).colorScheme.primary,
+    );
   }
 
   Future<void> _removeParticipant(String userId) async {
@@ -220,9 +283,10 @@ class _TripParticipantsScreenState extends State<TripParticipantsScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Add Participants',
+                  'Invite Participants',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -268,6 +332,7 @@ class _TripParticipantsScreenState extends State<TripParticipantsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'Search Results',
@@ -334,12 +399,7 @@ class _TripParticipantsScreenState extends State<TripParticipantsScreen> {
                                       ],
                                     ),
                                   ),
-                                  IconButton(
-                                    onPressed: () => _addParticipant(user.id),
-                                    icon: const Icon(Icons.add_circle_outline),
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
+                                  _getInvitationButton(user),
                                 ],
                               ),
                             ),
@@ -427,7 +487,7 @@ class _TripParticipantsScreenState extends State<TripParticipantsScreen> {
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
-                                          'Search for users above to add participants',
+                                          'Search for users above to invite participants',
                                           style: TextStyle(
                                             color: Colors.grey[500],
                                           ),

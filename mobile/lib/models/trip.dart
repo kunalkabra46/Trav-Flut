@@ -123,7 +123,7 @@ class TripParticipant {
   final String userId;
   final String role;
   final DateTime joinedAt;
-  final User user;
+  final User? user;
 
   const TripParticipant({
     required this.id,
@@ -131,7 +131,7 @@ class TripParticipant {
     required this.userId,
     required this.role,
     required this.joinedAt,
-    required this.user,
+    this.user,
   });
 
   factory TripParticipant.fromJson(Map<String, dynamic> json) =>

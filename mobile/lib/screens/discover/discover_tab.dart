@@ -738,10 +738,33 @@ class _DiscoverTabState extends State<DiscoverTab> {
                           ),
                         ),
                         if (isPrivate)
-                          Icon(
-                            Icons.lock_outline,
-                            size: 16,
-                            color: Colors.grey[600],
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange[100],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange[300]!),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.lock_outline,
+                                  size: 12,
+                                  color: Colors.orange[700],
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  'Private',
+                                  style: TextStyle(
+                                    color: Colors.orange[700],
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                       ],
                     ),

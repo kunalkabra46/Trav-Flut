@@ -160,26 +160,6 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
     }
   }
 
-  Future<void> _pickMedia() async {
-    try {
-      final file = await _mediaService.pickFile();
-      if (file != null) {
-        setState(() {
-          _selectedMediaFile = file;
-        });
-
-        // Auto-switch to media type
-        setState(() {
-          _selectedType = ThreadEntryType.media;
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking media: $e')),
-      );
-    }
-  }
-
   Future<void> _pickImage({bool fromCamera = false}) async {
     try {
       final file = await _mediaService.pickImage(fromCamera: fromCamera);
@@ -238,8 +218,10 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
     }
 
     final currentUser = context.read<AuthProvider>().currentUser;
-    final canAddEntries =
-        currentUser?.id == _trip!.userId && _trip!.status == TripStatus.ongoing;
+    final canAddEntries = _trip!.status == TripStatus.ongoing &&
+        (currentUser?.id == _trip!.userId ||
+            _trip!.participants?.any((p) => p.userId == currentUser?.id) ==
+                true);
 
     return Scaffold(
       appBar: AppBar(
@@ -450,7 +432,13 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                   if (entry.contentText != null) ...[
                     Text(
                       entry.contentText!,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: isCurrentUser
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer
+                                : Theme.of(context).colorScheme.onSurface,
+                          ),
                       overflow: TextOverflow.visible,
                       maxLines: null,
                     ),

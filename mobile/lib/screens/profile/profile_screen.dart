@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tripthread/providers/auth_provider.dart';
 import 'package:tripthread/providers/user_provider.dart';
+import 'package:tripthread/providers/trip_provider.dart';
 import 'package:tripthread/models/user.dart';
 import 'package:go_router/go_router.dart';
 
@@ -100,8 +101,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         '[ProfileScreen] Build method called for userId: ${widget.userId}');
 
     // Consumer2 listens to both Auth and User providers for state changes.
-    return Consumer2<AuthProvider, UserProvider>(
-      builder: (context, authProvider, userProvider, child) {
+    return Consumer3<AuthProvider, UserProvider, TripProvider>(
+      builder: (context, authProvider, userProvider, tripProvider, child) {
         final currentUser = authProvider.currentUser;
         final user = userProvider.getUser(widget.userId);
         final stats = userProvider.getUserStats(widget.userId);
@@ -144,6 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 isOwnProfile,
                 userProvider
                     .pendingFollowRequests, // Data comes directly from the provider.
+                tripProvider.pendingTripInvitations, // Add trip invitations
               ),
             ),
             body: RefreshIndicator(
@@ -177,13 +179,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     BuildContext context,
     bool isOwnProfile,
     List<dynamic> pendingRequests,
+    List<dynamic> pendingTripInvitations,
   ) {
-    // // The logic is now simple: if it's not your own profile, show nothing.
-    // if (!isOwnProfile) {
-    //   return [];
-    // }
-    // Otherwise, build the action buttons.
+    if (!isOwnProfile) {
+      return [];
+    }
+
     return [
+      // Trip Invitations Button
+      Stack(
+        alignment: Alignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.mail_outline),
+            tooltip: 'Trip Invitations',
+            onPressed: () => context.push('/trip-invites'),
+          ),
+          if (pendingTripInvitations.isNotEmpty)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 14,
+                  minHeight: 14,
+                ),
+                child: Text(
+                  '${pendingTripInvitations.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
       Stack(
         alignment: Alignment.center,
         children: [
@@ -192,29 +229,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
             tooltip: 'Follow Requests',
             onPressed: () => context.push('/follow-requests'),
           ),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Container(
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              constraints: const BoxConstraints(
-                minWidth: 14,
-                minHeight: 14,
-              ),
-              child: Text(
-                '${pendingRequests.length}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 8,
+          if (pendingRequests.isNotEmpty)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                textAlign: TextAlign.center,
+                constraints: const BoxConstraints(
+                  minWidth: 14,
+                  minHeight: 14,
+                ),
+                child: Text(
+                  '${pendingRequests.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
-          ),
         ],
       ),
       IconButton(
@@ -272,6 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Name and Privacy Indicator
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Flexible(
                 child: Text(
@@ -295,13 +334,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Username
           if (user.username != null) ...[
             const SizedBox(height: 4),
-            Flexible(
-              child: Text(
-                '@${user.username}',
-                style: Theme.of(context).textTheme.bodyMedium,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
+            Text(
+              '@${user.username}',
+              style: Theme.of(context).textTheme.bodyMedium,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ],
 

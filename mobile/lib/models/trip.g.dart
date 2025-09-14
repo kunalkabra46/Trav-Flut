@@ -110,7 +110,9 @@ TripParticipant _$TripParticipantFromJson(Map<String, dynamic> json) =>
       userId: json['userId'] as String,
       role: json['role'] as String,
       joinedAt: DateTime.parse(json['joinedAt'] as String),
-      user: User.fromJson(json['user'] as Map<String, dynamic>),
+      user: json['user'] == null
+          ? null
+          : User.fromJson(json['user'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$TripParticipantToJson(TripParticipant instance) =>

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:tripthread/models/trip.dart';
+import 'package:tripthread/models/trip_join_request.dart';
 import 'package:tripthread/services/trip_service.dart';
 
 class TripProvider extends ChangeNotifier {
@@ -11,15 +12,23 @@ class TripProvider extends ChangeNotifier {
   Trip? _currentTrip;
   List<Trip> _trips = [];
   List<TripThreadEntry> _currentTripEntries = [];
+  List<TripJoinRequest> _pendingTripInvitations = [];
+  List<TripJoinRequest> _sentTripInvitations = [];
   bool _isLoading = false;
+  bool _isTripInvitesLoading = false;
   String? _error;
+  String? _tripInvitesError;
 
   // Getters
   Trip? get currentTrip => _currentTrip;
   List<Trip> get trips => _trips;
   List<TripThreadEntry> get currentTripEntries => _currentTripEntries;
+  List<TripJoinRequest> get pendingTripInvitations => _pendingTripInvitations;
+  List<TripJoinRequest> get sentTripInvitations => _sentTripInvitations;
   bool get isLoading => _isLoading;
+  bool get isTripInvitesLoading => _isTripInvitesLoading;
   String? get error => _error;
+  String? get tripInvitesError => _tripInvitesError;
   bool get hasOngoingTrip => _currentTrip?.status == TripStatus.ongoing;
 
   // Initialize
@@ -27,6 +36,7 @@ class TripProvider extends ChangeNotifier {
     await Future.wait([
       loadCurrentTrip(),
       loadTrips(),
+      loadPendingTripInvitations(),
     ]);
   }
 
@@ -265,9 +275,106 @@ class TripProvider extends ChangeNotifier {
     }
   }
 
+  // Trip invitation methods
+  Future<bool> sendTripInvitation(String tripId, String receiverId) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final response =
+          await _tripService.sendTripInvitation(tripId, receiverId);
+
+      if (response.success) {
+        // Optionally refresh sent invitations for this trip
+        await loadSentTripInvitations(tripId);
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = response.error ?? 'Failed to send invitation';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Send trip invitation error: $e');
+      return false;
+    }
+  }
+
+  Future<void> loadPendingTripInvitations() async {
+    _isTripInvitesLoading = true;
+    _tripInvitesError = null;
+    notifyListeners();
+    try {
+      final response = await _tripService.getPendingTripInvitations();
+      if (response.success && response.data != null) {
+        _pendingTripInvitations = response.data!;
+      } else {
+        _tripInvitesError = response.error ?? 'Failed to load invitations';
+      }
+    } catch (e) {
+      _tripInvitesError =
+          'An unexpected error occurred while loading invitations.';
+      debugPrint('Load pending trip invitations error: $e');
+    } finally {
+      _isTripInvitesLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadSentTripInvitations(String tripId) async {
+    try {
+      final response = await _tripService.getSentTripInvitations(tripId);
+      if (response.success && response.data != null) {
+        _sentTripInvitations = response.data!;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Load sent trip invitations error: $e');
+    }
+  }
+
+  Future<bool> respondToTripInvitation(String inviteId, bool accept) async {
+    _isTripInvitesLoading = true;
+    _tripInvitesError = null;
+    notifyListeners();
+    try {
+      final response =
+          await _tripService.respondToTripInvitation(inviteId, accept);
+      if (response.success) {
+        // Remove the responded invitation from the list
+        _pendingTripInvitations.removeWhere((req) => req.id == inviteId);
+        // If accepted, refresh user's trips to show new participant status
+        if (accept) {
+          await loadTrips();
+        }
+        notifyListeners();
+        return true;
+      } else {
+        _tripInvitesError = response.error ?? 'Failed to respond to invitation';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _tripInvitesError = 'An unexpected error occurred while responding.';
+      notifyListeners();
+      debugPrint('Respond to trip invitation error: $e');
+      return false;
+    } finally {
+      _isTripInvitesLoading = false;
+      notifyListeners();
+    }
+  }
+
   // Clear error
   void clearError() {
     _error = null;
+    _tripInvitesError = null;
     notifyListeners();
   }
 
@@ -276,7 +383,10 @@ class TripProvider extends ChangeNotifier {
     _currentTrip = null;
     _trips = [];
     _currentTripEntries = [];
+    _pendingTripInvitations = [];
+    _sentTripInvitations = [];
     _error = null;
+    _tripInvitesError = null;
     notifyListeners();
   }
 }
