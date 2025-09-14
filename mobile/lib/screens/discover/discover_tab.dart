@@ -824,12 +824,13 @@ class _DiscoverTabState extends State<DiscoverTab> {
                             ? null
                             : () => _toggleFollow(userId, isFollowing),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor:
-                              Colors.grey[800], // Dark text for visibility
-                          side: BorderSide(color: Colors.grey[400]!),
+                          foregroundColor: Colors.grey[700],
+                          backgroundColor: Colors.grey[50],
+                          side: BorderSide(color: Colors.grey[300]!),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                         child: isProcessing
                             ? const SizedBox(
@@ -838,7 +839,15 @@ class _DiscoverTabState extends State<DiscoverTab> {
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : Text(isFollowing ? 'Following' : 'Requested'),
+                            : Text(
+                                isFollowing ? 'Following' : 'Requested',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
                       );
                     }
 
@@ -851,11 +860,11 @@ class _DiscoverTabState extends State<DiscoverTab> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
                               Theme.of(context).colorScheme.primary,
-                          foregroundColor:
-                              Colors.white, // White text on dark background
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                         child: isProcessing
                             ? const SizedBox(
@@ -867,7 +876,15 @@ class _DiscoverTabState extends State<DiscoverTab> {
                                       Colors.white),
                                 ),
                               )
-                            : Text(isPrivate ? 'Request' : 'Follow'),
+                            : Text(
+                                isPrivate ? 'Request' : 'Follow',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
                       );
                     }
                   })),

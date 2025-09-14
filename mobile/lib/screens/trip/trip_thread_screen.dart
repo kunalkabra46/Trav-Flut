@@ -388,8 +388,8 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: isCurrentUser
-                    ? Theme.of(context).colorScheme.primaryContainer
-                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.8)
+                    : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -404,6 +404,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                           style:
                               Theme.of(context).textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w600,
+                                    color: Colors.grey[800],
                                   ),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
@@ -433,11 +434,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                     Text(
                       entry.contentText!,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isCurrentUser
-                                ? Theme.of(context)
-                                    .colorScheme
-                                    .onPrimaryContainer
-                                : Theme.of(context).colorScheme.onSurface,
+                            color: Colors.grey[800],
                           ),
                       overflow: TextOverflow.visible,
                       maxLines: null,
@@ -452,11 +449,9 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withOpacity(0.1),
+                        color: Colors.blue[50],
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue[200]!),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -464,14 +459,14 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                           Icon(
                             Icons.location_on,
                             size: 16,
-                            color: Theme.of(context).colorScheme.primary,
+                            color: Colors.blue[600],
                           ),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               entry.locationName!,
                               style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
+                                color: Colors.blue[700],
                                 fontWeight: FontWeight.w500,
                                 fontSize: 12,
                               ),

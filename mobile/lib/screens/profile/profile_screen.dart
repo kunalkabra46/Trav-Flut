@@ -387,16 +387,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
+                    border: Border.all(color: Colors.grey[200]!),
                   ),
                   child: Column(
                     children: [
                       Icon(
                         Icons.lock_outlined,
                         size: 32,
-                        color: Colors.grey[700],
+                        color: Colors.grey[600],
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -404,14 +404,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.black87
+                              color: Colors.grey[800],
                                 ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Follow to see their trips and posts',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[700],
+                              color: Colors.grey[600],
                             ),
                         textAlign: TextAlign.center,
                       ),
@@ -431,7 +431,199 @@ class _ProfileScreenState extends State<ProfileScreen> {
           else
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: Consumer<UserProvider>(
+                builder: (context, userProvider, child) {
+                  final detailedStatus = userProvider.getDetailedFollowStatus(widget.userId);
+                  final actualIsFollowing = detailedStatus?.isFollowing ?? false;
+                  final actualIsRequestPending = detailedStatus?.isRequestPending ?? false;
+                  final isProcessing = userProvider.isLoading;
+
+                  // Use OutlinedButton for following/requested states
+                  if (actualIsFollowing || actualIsRequestPending) {
+                    return OutlinedButton(
+                      onPressed: isProcessing ? null : _handleFollowToggle,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.grey[700],
+                        backgroundColor: Colors.grey[50],
+                        side: BorderSide(color: Colors.grey[300]!),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: isProcessing
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(
+                              actualIsFollowing ? 'Unfollow' : 'Cancel Request',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    );
+                  }
+
+                  // Use ElevatedButton for follow state
+                  return ElevatedButton(
+                    onPressed: isProcessing ? null : _handleFollowToggle,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: isProcessing
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            user.isPrivate ? 'Send Request' : 'Follow',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Update the follow toggle handler to work with the new logic
+  Future<void> _handleFollowToggle() async {
+    final userProvider = context.read<UserProvider>();
+    final detailedStatus = userProvider.getDetailedFollowStatus(widget.userId);
+    final authProvider = context.read<AuthProvider>();
+
+    if (detailedStatus == null || authProvider.currentUser == null) return;
+
+    bool success = false;
+    String actionMessage = '';
+
+    if (detailedStatus.isFollowing || detailedStatus.isRequestPending) {
+      // Unfollow or cancel request
+      success = await userProvider.unfollowUser(widget.userId,
+          currentUserId: authProvider.currentUser!.id);
+      if (detailedStatus.isFollowing) {
+        actionMessage = success ? 'Successfully unfollowed user' : 'Failed to unfollow user';
+      } else {
+        actionMessage = success ? 'Follow request cancelled' : 'Failed to cancel request';
+      }
+    } else {
+      // Follow or send request
+      success = await userProvider.followUser(widget.userId,
+          currentUserId: authProvider.currentUser!.id);
+      final updatedStatus = userProvider.getDetailedFollowStatus(widget.userId);
+      if (updatedStatus?.isFollowing == true) {
+        actionMessage = 'Successfully followed user';
+      } else if (updatedStatus?.isRequestPending == true) {
+        actionMessage = 'Follow request sent';
+      } else {
+        actionMessage = 'Failed to follow user';
+        success = false;
+      }
+    }
+
+    if (!mounted) return;
+
+    // Show appropriate message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success
+            ? actionMessage
+            : (userProvider.error ?? 'An error occurred')),
+        backgroundColor: success ? Colors.green : Colors.red,
+      ),
+    );
+
+    // Force refresh of profile data to ensure UI is in sync
+    if (success) {
+      await userProvider.loadProfileData(
+          widget.userId, authProvider.currentUser!.id);
+    }
+  }
+
+  Widget _buildTripsSection(
+      BuildContext context, User user, bool isOwnProfile) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isOwnProfile ? 'Your Trips' : '${user.name}\'s Trips',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 16),
+          const Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.map_outlined,
+                  size: 48,
+                  color: Colors.grey,
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'No trips yet',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatColumn(BuildContext context, String count, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            count,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Remove the duplicate _handleFollowToggle method that was at the end
                 onPressed: isLoading ? null : _handleFollowToggle,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isFollowing || isRequestPending
