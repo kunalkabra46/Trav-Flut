@@ -364,8 +364,10 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
         children: [
           // Avatar
           CircleAvatar(
-            radius: 20,
-            backgroundColor: Theme.of(context).colorScheme.primary,
+            radius: 18,
+            backgroundColor: isCurrentUser 
+                ? Theme.of(context).colorScheme.primary
+                : Colors.orange[400],
             backgroundImage: entry.author.avatarUrl != null
                 ? NetworkImage(entry.author.avatarUrl!)
                 : null,
@@ -375,6 +377,7 @@ class _TripThreadScreenState extends State<TripThreadScreen> {
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
                   )
                 : null,
